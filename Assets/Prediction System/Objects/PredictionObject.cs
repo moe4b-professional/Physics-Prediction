@@ -62,6 +62,8 @@ namespace Default
             }
         }
 
+        public static bool CloneFlag { get; internal set; }
+
         public bool IsOriginal { get; protected set; }
         public PredictionObject Clone
         {
@@ -79,10 +81,10 @@ namespace Default
         {
             rigidbody = GetComponent<Rigidbody>();
 
-            IsClone = PredictionSystem.CloneFlag;
+            IsClone = CloneFlag;
             IsOriginal = !IsClone;
 
-            if (IsOriginal) PredictionSystem.AddObject(this);
+            if (IsOriginal) PredictionSystem.Objects.Add(this);
         }
 
         void OnEnable()
@@ -97,7 +99,7 @@ namespace Default
 
         void OnDestroy()
         {
-            if (IsOriginal) PredictionSystem.RemoveObject(this);
+            if (IsOriginal) PredictionSystem.Objects.Remove(this);
         }
     }
 #pragma warning restore CS0108

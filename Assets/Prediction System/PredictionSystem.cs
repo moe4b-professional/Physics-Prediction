@@ -24,110 +24,152 @@ namespace Default
 {
     public static class PredictionSystem
     {
-        public static Dictionary<PredictionObject, PredictionObject> Objects { get; private set; }
+        public static class Objects
+        {
+            public static Dictionary<PredictionObject, PredictionObject> Dictionary { get; private set; }
 
-        public const string SceneName = "Prediction Scene";
+            internal static void Prepare()
+            {
 
-        public static Scene UnityScene { get; private set; }
-        public static PhysicsScene PhysicsScene { get; private set; }
+            }
 
-        public static bool IsSceneLoaded { get; private set; }
+            public static PredictionObject Add(PredictionObject target)
+            {
+                Scenes.Validate();
 
-        public const string LayerName = "Prediction";
-        public static int LayerIndex { get; private set; } = LayerMask.NameToLayer(LayerName);
+                var copy = Clone(target.gameObject).GetComponent<PredictionObject>();
+
+                target.Other = copy;
+                copy.Other = target;
+
+                Dictionary.Add(target, copy);
+
+                return copy;
+            }
+
+            public static bool Remove(PredictionObject target)
+            {
+                if (Dictionary.Remove(target) == false)
+                    return false;
+
+                if (target && target.Other && target.Other.gameObject)
+                    Object.Destroy(target.Other.gameObject);
+
+                return true;
+            }
+
+            public static void Clear()
+            {
+                Dictionary.Clear();
+            }
+
+            public static void Anchor()
+            {
+                foreach (var pair in Dictionary)
+                {
+                    var original = pair.Key;
+                    var copy = pair.Value;
+
+                    copy.transform.position = original.transform.position;
+                    copy.transform.rotation = original.transform.rotation;
+                    copy.transform.localScale = original.transform.localScale;
+
+                    if (original.HasRigidbody)
+                    {
+                        copy.rigidbody.position = original.rigidbody.position;
+                        copy.rigidbody.rotation = original.rigidbody.rotation;
+
+                        copy.rigidbody.velocity = Vector3.zero;
+                        copy.rigidbody.angularVelocity = Vector3.zero;
+                    }
+                }
+            }
+
+            static Objects()
+            {
+                Dictionary = new Dictionary<PredictionObject, PredictionObject>();
+            }
+        }
+
+        public static class Scenes
+        {
+            public const string Name = "Prediction Scene";
+
+            public static Scene Unity { get; private set; }
+            public static PhysicsScene Physics { get; private set; }
+
+            public static bool IsLoaded { get; private set; }
+
+            internal static void Prepare()
+            {
+                SceneManager.sceneUnloaded += UnloadCallback;
+            }
+
+            static void UnloadCallback(Scene scene)
+            {
+                if (scene != Unity) return;
+
+                IsLoaded = false;
+                Objects.Clear();
+            }
+
+            public static void Validate()
+            {
+                if (IsLoaded) return;
+
+                Load();
+            }
+            internal static void Load()
+            {
+                if (IsLoaded) throw new Exception($"{Name} Already Loaded");
+
+                var paramters = new LoadSceneParameters(LoadSceneMode.Additive, LocalPhysicsMode.Physics3D);
+                Unity = SceneManager.LoadScene(Name, paramters);
+                IsLoaded = true;
+
+                Physics = Unity.GetPhysicsScene();
+            }
+        }
+
+        public static class Layers
+        {
+            public const string Name = "Prediction";
+
+            public static int Index { get; private set; } = LayerMask.NameToLayer(Name);
+
+            internal static void Prepare()
+            {
+                for (int layer = 0; layer < 31; layer++)
+                {
+                    var ignore = layer != Index;
+                    Physics.IgnoreLayerCollision(Index, layer, ignore);
+                }
+            }
+
+            public static void Set(GameObject gameObject) => Set(gameObject, Index);
+            public static void Set(GameObject gameObject, int layer)
+            {
+                gameObject.layer = layer;
+
+                foreach (Transform child in gameObject.transform)
+                    Set(child.gameObject, layer);
+            }
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Prepare()
         {
             RegisterPlayerLoop<Update>(Update);
 
-            SceneManager.sceneUnloaded += SceneUnloadedCallback;
-
-            for (int i = 0; i < 31; i++)
-            {
-                var ignore = i != LayerIndex;
-                Physics.IgnoreLayerCollision(LayerIndex, i, ignore);
-            }
-        }
-
-        static void SceneUnloadedCallback(Scene scene)
-        {
-            if (scene != UnityScene) return;
-
-            IsSceneLoaded = false;
-            Objects.Clear();
-        }
-
-        static void ValidateScene()
-        {
-            if (IsSceneLoaded) return;
-
-            LoadScene();
-        }
-        static void LoadScene()
-        {
-            if (IsSceneLoaded) throw new Exception($"{SceneName} Already Loaded");
-
-            var paramters = new LoadSceneParameters(LoadSceneMode.Additive, LocalPhysicsMode.Physics3D);
-            UnityScene = SceneManager.LoadScene(SceneName, paramters);
-            IsSceneLoaded = true;
-
-            PhysicsScene = UnityScene.GetPhysicsScene();
+            Objects.Prepare();
+            Scenes.Prepare();
+            Layers.Prepare();
         }
 
         static void Update()
         {
-            AnchorObjects();
+            Objects.Anchor();
         }
-
-        #region Objects
-        public static PredictionObject AddObject(PredictionObject target)
-        {
-            ValidateScene();
-
-            var copy = Clone(target.gameObject).GetComponent<PredictionObject>();
-
-            target.Other = copy;
-            copy.Other = target;
-
-            Objects.Add(target, copy);
-
-            return copy;
-        }
-
-        public static bool RemoveObject(PredictionObject target)
-        {
-            if (Objects.Remove(target) == false)
-                return false;
-
-            if (target && target.Other && target.Other.gameObject)
-                Object.Destroy(target.Other.gameObject);
-
-            return true;
-        }
-
-        public static void AnchorObjects()
-        {
-            foreach (var pair in Objects)
-            {
-                var original = pair.Key;
-                var copy = pair.Value;
-
-                copy.transform.position = original.transform.position;
-                copy.transform.rotation = original.transform.rotation;
-                copy.transform.localScale = original.transform.localScale;
-
-                if(original.HasRigidbody)
-                {
-                    copy.rigidbody.position = original.rigidbody.position;
-                    copy.rigidbody.rotation = original.rigidbody.rotation;
-
-                    copy.rigidbody.velocity = Vector3.zero;
-                    copy.rigidbody.angularVelocity = Vector3.zero;
-                }
-            }
-        }
-        #endregion
 
         #region Process
         public static int Iterations { get; private set; }
@@ -143,7 +185,7 @@ namespace Default
 
         public static Vector3[] RecordPrefab(GameObject prefab, Action<GameObject> action)
         {
-            ValidateScene();
+            Scenes.Validate();
 
             var instance = Clone(prefab);
             action(instance);
@@ -161,7 +203,7 @@ namespace Default
 
         public static Vector3[] RecordObject(PredictionObject target)
         {
-            ValidateScene();
+            Scenes.Validate();
 
             var points = new Vector3[Iterations];
 
@@ -183,7 +225,7 @@ namespace Default
         public static event IterateDelegate OnIterate;
         static void Iterate(int frame)
         {
-            PhysicsScene.Simulate(Time.fixedDeltaTime);
+            Scenes.Physics.Simulate(Time.fixedDeltaTime);
 
             OnIterate?.Invoke(frame);
         }
@@ -192,18 +234,13 @@ namespace Default
         public static event EndDelegate OnEnd;
         static void End()
         {
-            AnchorObjects();
+            Objects.Anchor();
 
             OnIterate = null;
 
             OnEnd?.Invoke();
         }
         #endregion
-
-        static PredictionSystem()
-        {
-            Objects = new Dictionary<PredictionObject, PredictionObject>();
-        }
 
         //Utility
 
@@ -218,29 +255,19 @@ namespace Default
             PlayerLoop.SetPlayerLoop(loop);
         }
 
-        public static bool CloneFlag { get; private set; }
         public static GameObject Clone(GameObject source)
         {
-            CloneFlag = true;
+            PredictionObject.CloneFlag = true;
             var instance = Object.Instantiate(source);
-
             instance.name = source.name;
 
-            SceneManager.MoveGameObjectToScene(instance, UnityScene);
-            CloneFlag = false;
+            SceneManager.MoveGameObjectToScene(instance, Scenes.Unity);
+            PredictionObject.CloneFlag = false;
 
-            SetLayer(instance, LayerIndex);
+            Layers.Set(instance);
             DestoryAllNonEssentialComponents(instance);
 
             return instance;
-        }
-
-        public static void SetLayer(GameObject gameObject, int layer)
-        {
-            gameObject.layer = layer;
-
-            foreach (Transform child in gameObject.transform)
-                SetLayer(child.gameObject, layer);
         }
 
         public static void DestoryAllNonEssentialComponents(GameObject gameObject)
