@@ -467,8 +467,8 @@ namespace PhysicsPrediction
         public static event SimualateDelegate OnSimulate;
         public static void Simulate(int iterations)
         {
-            Record.Prepare();
             Objects.Anchor();
+            Record.Prepare();
 
             for (int i = 0; i < iterations; i++)
             {
