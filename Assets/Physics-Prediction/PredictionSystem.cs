@@ -26,7 +26,7 @@ namespace PhysicsPrediction
     {
         public static class Objects
         {
-            public static Dictionary<PredictionObject, PredictionObject> Dictionary { get; private set; }
+            public static Dictionary<PredictionObject, PredictionObject> Collection { get; private set; }
 
             internal static void Prepare()
             {
@@ -40,14 +40,14 @@ namespace PhysicsPrediction
                 target.Other = copy;
                 copy.Other = target;
 
-                Dictionary.Add(target, copy);
+                Collection.Add(target, copy);
 
                 return copy;
             }
 
             public static bool Remove(PredictionObject target)
             {
-                if (Dictionary.Remove(target) == false)
+                if (Collection.Remove(target) == false)
                     return false;
 
                 if (target && target.Other && target.Other.gameObject)
@@ -58,13 +58,13 @@ namespace PhysicsPrediction
 
             public static void Clear()
             {
-                Dictionary.Clear();
+                Collection.Clear();
             }
 
             #region Anchor
             public static void Anchor()
             {
-                foreach (var pair in Dictionary)
+                foreach (var pair in Collection)
                 {
                     var original = pair.Key;
                     var copy = pair.Value;
@@ -104,7 +104,7 @@ namespace PhysicsPrediction
 
             static Objects()
             {
-                Dictionary = new Dictionary<PredictionObject, PredictionObject>();
+                Collection = new Dictionary<PredictionObject, PredictionObject>();
             }
         }
 
@@ -240,28 +240,29 @@ namespace PhysicsPrediction
         {
             public static class Objects
             {
-                public static Dictionary<PredictionObject, PredictionTimeline> Dictionary { get; private set; }
+                public static Dictionary<PredictionObject, PredictionTimeline> Collection { get; private set; }
 
                 public static PredictionTimeline Add(PredictionObject target)
                 {
-                    if (Dictionary.TryGetValue(target, out var points) == false)
+                    if (Collection.TryGetValue(target, out var points) == false)
                     {
                         points = new PredictionTimeline();
-                        Dictionary[target] = points;
+                        Collection[target] = points;
                     }
 
                     return points;
                 }
 
+                #region Procedure
                 internal static void Prepare()
                 {
-                    foreach (var timeline in Dictionary.Values)
+                    foreach (var timeline in Collection.Values)
                         timeline.Clear();
                 }
 
                 internal static void Iterate()
                 {
-                    foreach (var pair in Dictionary)
+                    foreach (var pair in Collection)
                     {
                         var target = pair.Key;
                         var timeline = pair.Value;
@@ -274,26 +275,27 @@ namespace PhysicsPrediction
                 {
 
                 }
+                #endregion
 
                 public static void Remove(PredictionObject target)
                 {
-                    Dictionary.Remove(target);
+                    Collection.Remove(target);
                 }
 
                 internal static void Clear()
                 {
-                    Dictionary.Clear();
+                    Collection.Clear();
                 }
 
                 static Objects()
                 {
-                    Dictionary = new Dictionary<PredictionObject, PredictionTimeline>();
+                    Collection = new Dictionary<PredictionObject, PredictionTimeline>();
                 }
             }
 
             public static class Prefabs
             {
-                public static Dictionary<PredictionTimeline, Entry> Dictionary { get; private set; }
+                public static Dictionary<PredictionTimeline, Entry> Collection { get; private set; }
 
                 public struct Entry
                 {
@@ -359,14 +361,15 @@ namespace PhysicsPrediction
 
                     var entry = new Entry(prefab, instance, action);
 
-                    Dictionary.Add(timeline, entry);
+                    Collection.Add(timeline, entry);
 
                     return timeline;
                 }
 
+                #region Procedure
                 internal static void Prepare()
                 {
-                    foreach (var pair in Dictionary)
+                    foreach (var pair in Collection)
                     {
                         var timeline = pair.Key;
                         timeline.Clear();
@@ -378,7 +381,7 @@ namespace PhysicsPrediction
 
                 internal static void Iterate()
                 {
-                    foreach (var pair in Dictionary)
+                    foreach (var pair in Collection)
                     {
                         var timeline = pair.Key;
                         var entry = pair.Value;
@@ -389,36 +392,38 @@ namespace PhysicsPrediction
 
                 internal static void Finish()
                 {
-                    foreach (var entry in Dictionary.Values)
+                    foreach (var entry in Collection.Values)
                         entry.Finish();
                 }
+                #endregion
 
                 public static bool Remove(PredictionTimeline timeline)
                 {
-                    if(Dictionary.TryGetValue(timeline, out var entry))
+                    if(Collection.TryGetValue(timeline, out var entry))
                         Object.Destroy(entry.Instance);
 
-                    return Dictionary.Remove(timeline);
+                    return Collection.Remove(timeline);
                 }
 
                 internal static void Clear()
                 {
-                    foreach (var entry in Dictionary.Values)
+                    foreach (var entry in Collection.Values)
                     {
                         var instance = entry.Instance;
 
                         Object.Destroy(instance);
                     }
 
-                    Dictionary.Clear();
+                    Collection.Clear();
                 }
 
                 static Prefabs()
                 {
-                    Dictionary = new Dictionary<PredictionTimeline, Entry>();
+                    Collection = new Dictionary<PredictionTimeline, Entry>();
                 }
             }
 
+            #region Procedure
             internal static void Prepare()
             {
                 Objects.Prepare();
@@ -436,6 +441,7 @@ namespace PhysicsPrediction
                 Objects.Finish();
                 Prefabs.Finish();
             }
+            #endregion
 
             internal static void Clear()
             {
