@@ -20,7 +20,7 @@ using Random = UnityEngine.Random;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 
-namespace Default
+namespace PhysicsPrediction
 {
     public static class PredictionSystem
     {

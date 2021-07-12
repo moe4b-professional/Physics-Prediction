@@ -17,27 +17,27 @@ using UnityEditorInternal;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Default
+namespace PhysicsPrediction
 {
-	public class ProjectileShooter2D : MonoBehaviour
+	public class ProjectileShooter3D : MonoBehaviour
 	{
 		[SerializeField]
 		GameObject prefab = default;
 
 		[SerializeField]
-		ForceData force = new ForceData(Vector2.right * 50 + Vector2.up * 3, ForceMode2D.Impulse);
+		ForceData force = new ForceData(Vector3.forward * 50 + Vector3.up * 3, ForceMode.VelocityChange);
 		[Serializable]
 		public struct ForceData
         {
 			[SerializeField]
-            Vector2 vector;
-            public Vector2 Vector => vector;
+            Vector3 vector;
+            public Vector3 Vector => vector;
 
 			[SerializeField]
-            ForceMode2D mode;
-            public ForceMode2D Mode => mode;
+            ForceMode mode;
+            public ForceMode Mode => mode;
 
-            public ForceData(Vector2 vector, ForceMode2D mode)
+            public ForceData(Vector2 vector, ForceMode mode)
             {
 				this.vector = vector;
 				this.mode = mode;
@@ -80,7 +80,7 @@ namespace Default
 			LookAtMouse();
 
 			if(Input.GetKeyDown(Key))
-				timeline = PredictionSystem.Record.Prefabs.Add(prefab, PredictionPhysicsMode.Physics2D, Shoot);
+				timeline = PredictionSystem.Record.Prefabs.Add(prefab, PredictionPhysicsMode.Physics3D, Shoot);
 
 			if (Input.GetKeyUp(Key))
 				PredictionSystem.Record.Prefabs.Remove(timeline);
@@ -90,13 +90,16 @@ namespace Default
 
         void LookAtMouse()
         {
-			var point = Camera.main.ScreenToWorldPoint(Input.mousePosition + Vector3.forward * 10);
+			var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
-			var direction = (point - transform.position);
+			if(Physics.Raycast(ray, out var hit))
+            {
+				var direction = hit.point - transform.position;
 
-			float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-			transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
-		}
+				var target = Quaternion.LookRotation(direction);
+				transform.rotation = Quaternion.RotateTowards(transform.rotation, target, 240f * Time.deltaTime);
+			}
+        }
 
 		void Shoot()
 		{
@@ -104,7 +107,7 @@ namespace Default
 			{
 				prediction.Line.positionCount = 0;
 
-				var instance = Instantiate(prefab).GetComponent<Rigidbody2D>();
+				var instance = Instantiate(prefab).GetComponent<Rigidbody>();
 				instance.transform.SetParent(InstanceContainer);
 				Shoot(instance);
 
@@ -114,11 +117,11 @@ namespace Default
 
 		void Shoot(GameObject gameObject)
         {
-			var rigidbody = gameObject.GetComponent<Rigidbody2D>();
+			var rigidbody = gameObject.GetComponent<Rigidbody>();
 
 			Shoot(rigidbody);
         }
-		void Shoot(Rigidbody2D rigidbody)
+		void Shoot(Rigidbody rigidbody)
 		{
 			var relativeForce = transform.TransformVector(force.Vector);
 
