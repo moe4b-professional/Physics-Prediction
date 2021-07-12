@@ -482,19 +482,6 @@ namespace PhysicsPrediction
             OnSimulate?.Invoke(iterations);
         }
 
-        //Utility
-
-        public static void RegisterPlayerLoop<TType>(PlayerLoopSystem.UpdateFunction callback)
-        {
-            var loop = PlayerLoop.GetCurrentPlayerLoop();
-
-            for (int i = 0; i < loop.subSystemList.Length; ++i)
-                if (loop.subSystemList[i].type == typeof(TType))
-                    loop.subSystemList[i].updateDelegate += callback;
-
-            PlayerLoop.SetPlayerLoop(loop);
-        }
-
         public static GameObject Clone(GameObject source, PredictionPhysicsMode mode)
         {
             Scenes.Get(mode).Validate();
@@ -513,27 +500,45 @@ namespace PhysicsPrediction
             return instance;
         }
 
+        public static HashSet<Type> PersistentComponents { get; private set; } = new HashSet<Type>
+        {
+            typeof(Transform),
+
+            typeof(Rigidbody),
+            typeof(Rigidbody2D),
+        };
+
         public static void DestoryAllNonEssentialComponents(GameObject gameObject)
         {
             var components = gameObject.GetComponentsInChildren<Component>(true);
 
             foreach (var component in components)
             {
-                if (component is Transform) continue;
-
-                if (component is Rigidbody) continue;
-                if (component is Rigidbody2D) continue;
-
                 if (component is Collider) continue;
                 if (component is Collider2D) continue;
-
                 if (component is IPredictionPersistantObject) continue;
+
+                var type = component.GetType();
+                if (PersistentComponents.Contains(type)) continue;
 
                 Object.Destroy(component);
             }
         }
 
-#region Physics Mode
+        //Utility
+
+        public static void RegisterPlayerLoop<TType>(PlayerLoopSystem.UpdateFunction callback)
+        {
+            var loop = PlayerLoop.GetCurrentPlayerLoop();
+
+            for (int i = 0; i < loop.subSystemList.Length; ++i)
+                if (loop.subSystemList[i].type == typeof(TType))
+                    loop.subSystemList[i].updateDelegate += callback;
+
+            PlayerLoop.SetPlayerLoop(loop);
+        }
+
+        #region Physics Mode
         public static LocalPhysicsMode ConvertPhysicsMode(PredictionPhysicsMode mode)
         {
             switch (mode)
@@ -563,7 +568,7 @@ namespace PhysicsPrediction
                 return component != null;
             }
         }
-#endregion
+        #endregion
     }
 
     public enum PredictionPhysicsMode
