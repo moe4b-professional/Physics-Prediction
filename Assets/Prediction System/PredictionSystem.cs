@@ -300,6 +300,9 @@ namespace Default
                     public GameObject Prefab { get; private set; }
                     public GameObject Instance { get; private set; }
 
+                    public Rigidbody Rigidbody { get; private set; }
+                    public Rigidbody2D Rigidbody2D { get; private set; }
+
                     public Vector3 Position => Instance.transform.position;
                     public Quaternion Rotation => Instance.transform.rotation;
 
@@ -307,6 +310,18 @@ namespace Default
 
                     internal void Prepare()
                     {
+                        if (Rigidbody)
+                        {
+                            Rigidbody.velocity = Vector3.zero;
+                            Rigidbody.angularVelocity = Vector3.zero;
+                        }
+
+                        if (Rigidbody2D)
+                        {
+                            Rigidbody2D.velocity = Vector2.zero;
+                            Rigidbody2D.angularVelocity = 0f;
+                        }
+
                         Instance.SetActive(true);
 
                         Action(Instance);
@@ -321,6 +336,10 @@ namespace Default
                     {
                         this.Prefab = prefab;
                         this.Instance = instance;
+
+                        Rigidbody = Instance.GetComponent<Rigidbody>();
+                        Rigidbody2D = Instance.GetComponent<Rigidbody2D>();
+
                         this.Action = action;
                     }
                 }

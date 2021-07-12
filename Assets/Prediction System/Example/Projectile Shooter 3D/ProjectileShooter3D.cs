@@ -123,9 +123,6 @@ namespace Default
         }
 		void Shoot(Rigidbody rigidbody)
 		{
-			rigidbody.velocity = Vector3.zero;
-			rigidbody.angularVelocity = Vector3.zero;
-
 			var relativeForce = transform.TransformVector(force.Vector);
 
 			rigidbody.AddForce(relativeForce, force.Mode);
