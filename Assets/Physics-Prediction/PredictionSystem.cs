@@ -453,15 +453,14 @@ namespace PhysicsPrediction
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Prepare()
         {
-            RegisterPlayerLoop<Update>(Update);
+#if UNITY_EDITOR
+            ///In Editor only as a visual showcase of the anchoring of objects
+            ///In Reality we only need to anchor objects before we simulate
+            RegisterPlayerLoop<PreLateUpdate>(Objects.Anchor);
+#endif
 
             Objects.Prepare();
             Scenes.Prepare();
-        }
-
-        static void Update()
-        {
-            Objects.Anchor();
         }
 
         public delegate void SimualateDelegate(int iterations);
@@ -469,6 +468,7 @@ namespace PhysicsPrediction
         public static void Simulate(int iterations)
         {
             Record.Prepare();
+            Objects.Anchor();
 
             for (int i = 0; i < iterations; i++)
             {
@@ -478,7 +478,6 @@ namespace PhysicsPrediction
             }
 
             Record.Finish();
-            Objects.Anchor();
 
             OnSimulate?.Invoke(iterations);
         }
@@ -534,6 +533,7 @@ namespace PhysicsPrediction
             }
         }
 
+#region Physics Mode
         public static LocalPhysicsMode ConvertPhysicsMode(PredictionPhysicsMode mode)
         {
             switch (mode)
@@ -563,6 +563,7 @@ namespace PhysicsPrediction
                 return component != null;
             }
         }
+#endregion
     }
 
     public enum PredictionPhysicsMode

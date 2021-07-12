@@ -80,7 +80,7 @@ namespace PhysicsPrediction
 			LookAtMouse();
 
 			if(Input.GetKeyDown(Key))
-				timeline = PredictionSystem.Record.Prefabs.Add(prefab, PredictionPhysicsMode.Physics3D, Shoot);
+				timeline = PredictionSystem.Record.Prefabs.Add(prefab, Shoot);
 
 			if (Input.GetKeyUp(Key))
 				PredictionSystem.Record.Prefabs.Remove(timeline);
