@@ -68,19 +68,36 @@ namespace Default
                     var original = pair.Key;
                     var copy = pair.Value;
 
-                    copy.transform.position = original.transform.position;
-                    copy.transform.rotation = original.transform.rotation;
-                    copy.transform.localScale = original.transform.localScale;
+                    AnchorTransform(original.transform, copy.transform);
 
-                    if (original.HasRigidbody)
-                    {
-                        copy.rigidbody.position = original.rigidbody.position;
-                        copy.rigidbody.rotation = original.rigidbody.rotation;
-
-                        copy.rigidbody.velocity = Vector3.zero;
-                        copy.rigidbody.angularVelocity = Vector3.zero;
-                    }
+                    if (original.HasRigidbody) AnchorRigidbody(original.rigidbody, copy.rigidbody);
+                    if (original.HasRigidbody2D) AnchorRigidbody2D(original.rigidbody2D, copy.rigidbody2D);
                 }
+            }
+
+            static void AnchorTransform(Transform original, Transform copy)
+            {
+                copy.position = original.position;
+                copy.rotation = original.rotation;
+                copy.localScale = original.localScale;
+            }
+
+            static void AnchorRigidbody(Rigidbody original, Rigidbody copy)
+            {
+                copy.position = original.position;
+                copy.rotation = original.rotation;
+
+                copy.velocity = Vector3.zero;
+                copy.angularVelocity = Vector3.zero;
+            }
+
+            static void AnchorRigidbody2D(Rigidbody2D original, Rigidbody2D copy)
+            {
+                copy.position = original.position;
+                copy.rotation = original.rotation;
+
+                copy.velocity = Vector2.zero;
+                copy.angularVelocity = 0f;
             }
 
             static Objects()
@@ -93,16 +110,37 @@ namespace Default
         {
             public const string ID = "Prediction";
 
-            public static Controller Physics2D { get; private set; }
-            public static Controller Physics3D { get; private set; }
+            public static Physics2DController Physics2D { get; private set; }
+            public class Physics2DController : Controller<PhysicsScene2D>
+            {
+                public override LocalPhysicsMode LocalPhysicsMode => LocalPhysicsMode.Physics2D;
 
-            public class Controller
+                protected override PhysicsScene2D GetPhysicsScene(Scene scene) => scene.GetPhysicsScene2D();
+
+                public override void Simulate(float step) => Physics.Simulate(step);
+
+                public Physics2DController(string ID) : base(ID) { }
+            }
+
+            public static Physics3DController Physics3D { get; private set; }
+            public class Physics3DController : Controller<PhysicsScene>
+            {
+                public override LocalPhysicsMode LocalPhysicsMode => LocalPhysicsMode.Physics3D;
+
+                protected override PhysicsScene GetPhysicsScene(Scene scene) => scene.GetPhysicsScene();
+
+                public override void Simulate(float step) => Physics.Simulate(step);
+
+                public Physics3DController(string ID) : base(ID) { }
+            }
+
+            public abstract class Controller
             {
                 public string ID { get; protected set; }
-                public PredictionPhysicsMode Mode { get; protected set; }
+
+                public abstract LocalPhysicsMode LocalPhysicsMode { get; }
 
                 public Scene Unity { get; private set; }
-                public PhysicsScene Physics { get; private set; }
 
                 public bool IsLoaded { get; private set; }
 
@@ -117,17 +155,16 @@ namespace Default
 
                     Load();
                 }
-                internal void Load()
+                internal virtual void Load()
                 {
                     if (IsLoaded) throw new Exception($"{ID} Already Loaded");
 
                     var parameters = new CreateSceneParameters()
                     {
-                        localPhysicsMode = ConvertMode(Mode),
+                        localPhysicsMode = LocalPhysicsMode,
                     };
 
                     Unity = SceneManager.CreateScene(ID, parameters);
-                    Physics = Unity.GetPhysicsScene();
 
                     IsLoaded = true;
                 }
@@ -141,13 +178,27 @@ namespace Default
                     Record.Clear();
                 }
 
-                public void Simulate(float time) => Physics.Simulate(time);
+                public abstract void Simulate(float time);
 
-                public Controller(string ID, PredictionPhysicsMode mode)
+                public Controller(string ID)
                 {
                     this.ID = ID;
-                    this.Mode = mode;
                 }
+            }
+            public abstract class Controller<T> : Controller
+            {
+                public T Physics { get; private set; }
+
+                internal override void Load()
+                {
+                    base.Load();
+
+                    Physics = GetPhysicsScene(Unity);
+                }
+
+                protected abstract T GetPhysicsScene(Scene scene);
+
+                public Controller(string ID) : base(ID) { }
             }
 
             public static Controller Get(PredictionPhysicsMode mode)
@@ -178,8 +229,8 @@ namespace Default
 
             static Scenes()
             {
-                Physics2D = new Controller($"{ID} 2D", PredictionPhysicsMode.Physics2D);
-                Physics3D = new Controller($"{ID} 3D", PredictionPhysicsMode.Physics3D);
+                Physics2D = new Physics2DController($"{ID} 2D");
+                Physics3D = new Physics3DController($"{ID} 3D");
             }
         }
 
@@ -414,8 +465,7 @@ namespace Default
 
             for (int i = 0; i < iterations; i++)
             {
-                Scenes.Physics2D.Simulate(Time.fixedDeltaTime);
-                Scenes.Physics3D.Simulate(Time.fixedDeltaTime);
+                Scenes.Simulate(Time.fixedDeltaTime);
 
                 Record.Iterate();
             }
@@ -465,9 +515,13 @@ namespace Default
             foreach (var component in components)
             {
                 if (component is Transform) continue;
+
                 if (component is Rigidbody) continue;
+                if (component is Rigidbody2D) continue;
+
                 if (component is Collider) continue;
                 if (component is Collider2D) continue;
+
                 if (component is IPredictionPersistantObject) continue;
 
                 Object.Destroy(component);

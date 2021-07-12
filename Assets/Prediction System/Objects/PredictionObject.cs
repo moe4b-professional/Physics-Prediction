@@ -55,6 +55,9 @@ namespace Default
         public Rigidbody rigidbody { get; protected set; }
         public bool HasRigidbody => rigidbody != null;
 
+        public Rigidbody2D rigidbody2D { get; protected set; }
+        public bool HasRigidbody2D => rigidbody2D != null;
+
         public bool IsClone { get; protected set; }
         public PredictionObject Original
         {
@@ -89,6 +92,7 @@ namespace Default
         void Awake()
         {
             rigidbody = GetComponent<Rigidbody>();
+            rigidbody2D = GetComponent<Rigidbody2D>();
 
             IsClone = CloneFlag;
             IsOriginal = !IsClone;

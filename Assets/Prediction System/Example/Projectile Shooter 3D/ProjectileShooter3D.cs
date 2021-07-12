@@ -19,7 +19,7 @@ using Random = UnityEngine.Random;
 
 namespace Default
 {
-	public class ProjectileShooter : MonoBehaviour
+	public class ProjectileShooter3D : MonoBehaviour
 	{
 		[SerializeField]
 		GameObject prefab = default;
