@@ -111,6 +111,7 @@ namespace Default
 
                 IsLoaded = false;
                 Objects.Clear();
+                Record.Clear();
             }
 
             public static void Validate()
@@ -156,6 +157,189 @@ namespace Default
             }
         }
 
+        public static class Record
+        {
+            public static class Objects
+            {
+                public static Dictionary<PredictionObject, Timeline> Dictionary { get; private set; }
+
+                public static Timeline Add(PredictionObject target)
+                {
+                    if (Dictionary.TryGetValue(target, out var points) == false)
+                    {
+                        points = new Timeline();
+                        Dictionary[target] = points;
+                    }
+
+                    return points;
+                }
+
+                internal static void Prepare()
+                {
+                    foreach (var timeline in Dictionary.Values)
+                        timeline.Clear();
+                }
+
+                internal static void Iterate()
+                {
+                    foreach (var pair in Dictionary)
+                    {
+                        var target = pair.Key;
+                        var timeline = pair.Value;
+
+                        timeline.Add(target.Clone.Position);
+                    }
+                }
+
+                internal static void Finish()
+                {
+
+                }
+
+                public static void Remove(PredictionObject target)
+                {
+                    Dictionary.Remove(target);
+                }
+
+                internal static void Clear()
+                {
+                    Dictionary.Clear();
+                }
+
+                static Objects()
+                {
+                    Dictionary = new Dictionary<PredictionObject, Timeline>();
+                }
+            }
+
+            public static class Prefabs
+            {
+                public static Dictionary<Timeline, Entry> Dictionary { get; private set; }
+
+                public struct Entry
+                {
+                    public GameObject Prefab { get; private set; }
+                    public GameObject Instance { get; private set; }
+
+                    public Vector3 Position => Instance.transform.position;
+                    public Quaternion Rotation => Instance.transform.rotation;
+
+                    public Action<GameObject> Action { get; private set; }
+
+                    internal void Prepare()
+                    {
+                        Instance.SetActive(true);
+
+                        Action(Instance);
+                    }
+
+                    internal void Finish()
+                    {
+                        Instance.SetActive(false);
+                    }
+
+                    public Entry(GameObject prefab, GameObject instance, Action<GameObject> action)
+                    {
+                        this.Prefab = prefab;
+                        this.Instance = instance;
+                        this.Action = action;
+                    }
+                }
+
+                public static Timeline Add(GameObject prefab, Action<GameObject> action)
+                {
+                    var timeline = new Timeline();
+
+                    var instance = Clone(prefab);
+                    instance.SetActive(false);
+
+                    var entry = new Entry(prefab, instance, action);
+
+                    Dictionary.Add(timeline, entry);
+
+                    return timeline;
+                }
+
+                internal static void Prepare()
+                {
+                    foreach (var pair in Dictionary)
+                    {
+                        var timeline = pair.Key;
+                        timeline.Clear();
+
+                        var entry = pair.Value;
+                        entry.Prepare();
+                    }
+                }
+
+                internal static void Iterate()
+                {
+                    foreach (var pair in Dictionary)
+                    {
+                        var timeline = pair.Key;
+                        var entry = pair.Value;
+
+                        timeline.Add(entry.Position);
+                    }
+                }
+
+                internal static void Finish()
+                {
+                    foreach (var entry in Dictionary.Values)
+                        entry.Finish();
+                }
+
+                public static bool Remove(Timeline timeline)
+                {
+                    if(Dictionary.TryGetValue(timeline, out var entry))
+                        Object.Destroy(entry.Instance);
+
+                    return Dictionary.Remove(timeline);
+                }
+
+                internal static void Clear()
+                {
+                    foreach (var entry in Dictionary.Values)
+                    {
+                        var instance = entry.Instance;
+
+                        Object.Destroy(instance);
+                    }
+
+                    Dictionary.Clear();
+                }
+
+                static Prefabs()
+                {
+                    Dictionary = new Dictionary<Timeline, Entry>();
+                }
+            }
+
+            internal static void Prepare()
+            {
+                Objects.Prepare();
+                Prefabs.Prepare();
+            }
+
+            internal static void Iterate()
+            {
+                Objects.Iterate();
+                Prefabs.Iterate();
+            }
+
+            internal static void Finish()
+            {
+                Objects.Finish();
+                Prefabs.Finish();
+            }
+
+            internal static void Clear()
+            {
+                Objects.Clear();
+                Prefabs.Clear();
+            }
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Prepare()
         {
@@ -171,76 +355,26 @@ namespace Default
             Objects.Anchor();
         }
 
-        #region Process
-        public static int Iterations { get; private set; }
-
-        public delegate void StartDelegate();
-        public static event StartDelegate OnStart;
-        public static void Start(int iterations)
-        {
-            Iterations = iterations;
-
-            OnStart?.Invoke();
-        }
-
-        public static Vector3[] RecordPrefab(GameObject prefab, Action<GameObject> action)
+        public delegate void SimualateDelegate(int iterations);
+        public static event SimualateDelegate OnSimulate;
+        public static void Simulate(int iterations)
         {
             Scenes.Validate();
 
-            var instance = Clone(prefab);
-            action(instance);
+            Record.Prepare();
 
-            var points = new Vector3[Iterations];
+            for (int i = 0; i < iterations; i++)
+            {
+                Scenes.Physics.Simulate(Time.fixedDeltaTime);
 
-            OnIterate += Register;
-            void Register(int index) => points[index] = instance.transform.position;
+                Record.Iterate();
+            }
 
-            OnEnd += Clear;
-            void Clear() => Object.Destroy(instance);
-
-            return points;
-        }
-
-        public static Vector3[] RecordObject(PredictionObject target)
-        {
-            Scenes.Validate();
-
-            var points = new Vector3[Iterations];
-
-            OnIterate += Register;
-            void Register(int index) => points[index] = target.Clone.Position;
-
-            return points;
-        }
-        
-        public static void Simulate()
-        {
-            for (int i = 0; i < Iterations; i++)
-                Iterate(i);
-
-            End();
-        }
-
-        public delegate void IterateDelegate(int frame);
-        public static event IterateDelegate OnIterate;
-        static void Iterate(int frame)
-        {
-            Scenes.Physics.Simulate(Time.fixedDeltaTime);
-
-            OnIterate?.Invoke(frame);
-        }
-
-        public delegate void EndDelegate();
-        public static event EndDelegate OnEnd;
-        static void End()
-        {
+            Record.Finish();
             Objects.Anchor();
 
-            OnIterate = null;
-
-            OnEnd?.Invoke();
+            OnSimulate?.Invoke(iterations);
         }
-        #endregion
 
         //Utility
 
@@ -257,6 +391,8 @@ namespace Default
 
         public static GameObject Clone(GameObject source)
         {
+            Scenes.Validate();
+
             PredictionObject.CloneFlag = true;
             var instance = Object.Instantiate(source);
             instance.name = source.name;
@@ -284,6 +420,11 @@ namespace Default
 
                 Object.Destroy(component);
             }
+        }
+
+        public class Timeline : List<Vector3>
+        {
+
         }
     }
 

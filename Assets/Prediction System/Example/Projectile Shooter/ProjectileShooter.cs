@@ -45,9 +45,9 @@ namespace Default
         }
 
 		[SerializeField]
-		PredectionProperty prediction = default;
+		PredictionProperty prediction = default;
 		[Serializable]
-		public class PredectionProperty
+		public class PredictionProperty
         {
 			[SerializeField]
 			int iterations = 40;
@@ -62,6 +62,8 @@ namespace Default
             public LineRenderer Line => line;
         }
 
+		PredictionSystem.Timeline timeline;
+
 		public const KeyCode Key = KeyCode.Mouse0;
 
 		Transform InstanceContainer;
@@ -71,7 +73,9 @@ namespace Default
             InstanceContainer = new GameObject("Projectiles Container").transform;
 
 			StartCoroutine(Procedure());
-        }
+
+			timeline = PredictionSystem.Record.Prefabs.Add(prefab, Shoot);
+		}
 
         void Update()
         {
@@ -103,7 +107,7 @@ namespace Default
 				instance.transform.SetParent(InstanceContainer);
 				Shoot(instance);
 
-				TrajectoryPredictionDrawer.Hide();
+				TrajectoryPredictionDrawer.HideAll();
 			}
 		}
 
@@ -115,6 +119,9 @@ namespace Default
         }
 		void Shoot(Rigidbody rigidbody)
 		{
+			rigidbody.velocity = Vector3.zero;
+			rigidbody.angularVelocity = Vector3.zero;
+
 			var relativeForce = transform.TransformVector(force.Vector);
 
 			rigidbody.AddForce(relativeForce, force.Mode);
@@ -137,14 +144,14 @@ namespace Default
         {
 			if (Input.GetKey(Key))
 			{
-				PredictionSystem.Start(prediction.Iterations);
+				PredictionSystem.Simulate(prediction.Iterations);
 
-				var points = PredictionSystem.RecordPrefab(prefab, Shoot);
+				TrajectoryPredictionDrawer.ShowAll();
 
-				PredictionSystem.Simulate();
+				prediction.Line.positionCount = timeline.Count;
 
-				prediction.Line.positionCount = points.Length;
-				prediction.Line.SetPositions(points);
+				for (int i = 0; i < timeline.Count; i++)
+					prediction.Line.SetPosition(i, timeline[i]);
 			}
 		}
 	}

@@ -27,7 +27,7 @@ namespace Default
 
         public PredictionObject Target { get; protected set; }
 
-        public Vector3[] Points { get; protected set; }
+        PredictionSystem.Timeline timeline;
 
         void Awake()
         {
@@ -36,41 +36,67 @@ namespace Default
 
         void Start()
         {
-            PredictionSystem.OnStart += PredictionStartCallback;
-            PredictionSystem.OnEnd += PredictionEndCallback;
+            timeline = PredictionSystem.Record.Objects.Add(Target);
 
-            OnHide += HideCallback;
+            PredictionSystem.OnSimulate += PredictionSimulateCallback;
+
+            OnShowAll += Show;
+            OnHideAll += Hide;
         }
 
-        void HideCallback()
+        void PredictionSimulateCallback(int iterations)
         {
-            line.positionCount = 0;
+            line.positionCount = timeline.Count;
+
+            for (int i = 0; i < timeline.Count; i++)
+                line.SetPosition(i, timeline[i]);
         }
 
-        void PredictionStartCallback()
+        #region Visibility
+        public bool Visibile
         {
-            Points = PredictionSystem.RecordObject(Target);
+            get => line.enabled;
+            set
+            {
+                if (value)
+                    Show();
+                else
+                    Hide();
+            }
         }
 
-        void PredictionEndCallback()
+        public void Hide()
         {
-            line.positionCount = Points.Length;
-            line.SetPositions(Points);
+            line.enabled = false;
         }
+
+        public void Show()
+        {
+            line.enabled = true;
+        }
+        #endregion
 
         void OnDestroy()
         {
-            PredictionSystem.OnStart -= PredictionStartCallback;
-            PredictionSystem.OnEnd -= PredictionEndCallback;
+            PredictionSystem.Record.Objects.Remove(Target);
 
-            OnHide -= HideCallback;
+            PredictionSystem.OnSimulate -= PredictionSimulateCallback;
+
+            OnShowAll -= Show;
+            OnHideAll -= Hide;
         }
 
         //Static Utility
-        public static event Action OnHide;
-        public static void Hide()
+        public static event Action OnShowAll;
+        public static void ShowAll()
         {
-            OnHide?.Invoke();
+            OnShowAll?.Invoke();
+        }
+
+        public static event Action OnHideAll;
+        public static void HideAll()
+        {
+            OnHideAll?.Invoke();
         }
     }
 }
