@@ -26,6 +26,10 @@ namespace Default
     {
         public const int ExectionOrder = -200;
 
+        [SerializeField]
+        PredictionPhysicsMode mode = PredictionPhysicsMode.Physics3D;
+        public PredictionPhysicsMode Mode => mode;
+
         public Vector3 Position
         {
             get => transform.position;
@@ -76,6 +80,11 @@ namespace Default
         }
 
         public PredictionObject Other { get; internal set; }
+        
+        void Reset()
+        {
+            mode = PredictionSystem.CheckPhysicsMode(gameObject, mode);
+        }
 
         void Awake()
         {
@@ -84,7 +93,7 @@ namespace Default
             IsClone = CloneFlag;
             IsOriginal = !IsClone;
 
-            if (IsOriginal) PredictionSystem.Objects.Add(this);
+            if (IsOriginal) PredictionSystem.Objects.Add(this, mode);
         }
 
         void OnEnable()

@@ -62,7 +62,7 @@ namespace Default
             public LineRenderer Line => line;
         }
 
-		PredictionSystem.Timeline timeline;
+		PredictionTimeline timeline;
 
 		public const KeyCode Key = KeyCode.Mouse0;
 
@@ -80,7 +80,7 @@ namespace Default
 			LookAtMouse();
 
 			if(Input.GetKeyDown(Key))
-				timeline = PredictionSystem.Record.Prefabs.Add(prefab, Shoot);
+				timeline = PredictionSystem.Record.Prefabs.Add(prefab, PredictionPhysicsMode.Physics3D, Shoot);
 
 			if (Input.GetKeyUp(Key))
 				PredictionSystem.Record.Prefabs.Remove(timeline);

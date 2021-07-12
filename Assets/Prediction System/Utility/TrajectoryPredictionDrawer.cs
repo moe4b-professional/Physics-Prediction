@@ -27,7 +27,7 @@ namespace Default
 
         public PredictionObject Target { get; protected set; }
 
-        PredictionSystem.Timeline timeline;
+        PredictionTimeline timeline;
 
         void Awake()
         {

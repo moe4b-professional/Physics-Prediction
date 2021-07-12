@@ -33,11 +33,9 @@ namespace Default
 
             }
 
-            public static PredictionObject Add(PredictionObject target)
+            public static PredictionObject Add(PredictionObject target, PredictionPhysicsMode mode)
             {
-                Scenes.Validate();
-
-                var copy = Clone(target.gameObject).GetComponent<PredictionObject>();
+                var copy = Clone(target.gameObject, mode).GetComponent<PredictionObject>();
 
                 target.Other = copy;
                 copy.Other = target;
@@ -93,42 +91,95 @@ namespace Default
 
         public static class Scenes
         {
-            public const string Name = "Prediction Scene";
+            public const string ID = "Prediction";
 
-            public static Scene Unity { get; private set; }
-            public static PhysicsScene Physics { get; private set; }
+            public static Controller Physics2D { get; private set; }
+            public static Controller Physics3D { get; private set; }
 
-            public static bool IsLoaded { get; private set; }
+            public class Controller
+            {
+                public string ID { get; protected set; }
+                public PredictionPhysicsMode Mode { get; protected set; }
+
+                public Scene Unity { get; private set; }
+                public PhysicsScene Physics { get; private set; }
+
+                public bool IsLoaded { get; private set; }
+
+                internal void Prepare()
+                {
+                    SceneManager.sceneUnloaded += UnloadCallback;
+                }
+
+                public void Validate()
+                {
+                    if (IsLoaded) return;
+
+                    Load();
+                }
+                internal void Load()
+                {
+                    if (IsLoaded) throw new Exception($"{ID} Already Loaded");
+
+                    var parameters = new CreateSceneParameters()
+                    {
+                        localPhysicsMode = ConvertMode(Mode),
+                    };
+
+                    Unity = SceneManager.CreateScene(ID, parameters);
+                    Physics = Unity.GetPhysicsScene();
+
+                    IsLoaded = true;
+                }
+
+                void UnloadCallback(Scene scene)
+                {
+                    if (scene != Unity) return;
+
+                    IsLoaded = false;
+                    Objects.Clear();
+                    Record.Clear();
+                }
+
+                public void Simulate(float time) => Physics.Simulate(time);
+
+                public Controller(string ID, PredictionPhysicsMode mode)
+                {
+                    this.ID = ID;
+                    this.Mode = mode;
+                }
+            }
+
+            public static Controller Get(PredictionPhysicsMode mode)
+            {
+                switch (mode)
+                {
+                    case PredictionPhysicsMode.Physics2D:
+                        return Physics2D;
+
+                    case PredictionPhysicsMode.Physics3D:
+                        return Physics3D;
+                }
+
+                throw new NotImplementedException();
+            }
 
             internal static void Prepare()
             {
-                SceneManager.sceneUnloaded += UnloadCallback;
+                Physics2D.Prepare();
+                Physics3D.Prepare();
             }
 
-            static void UnloadCallback(Scene scene)
+            internal static void Simulate(float time)
             {
-                if (scene != Unity) return;
-
-                IsLoaded = false;
-                Objects.Clear();
-                Record.Clear();
+                if (Physics2D.IsLoaded) Physics2D.Simulate(time);
+                if (Physics3D.IsLoaded) Physics3D.Simulate(time);
             }
 
-            public static void Validate()
+            static Scenes()
             {
-                if (IsLoaded) return;
-
-                Load();
-            }
-            internal static void Load()
-            {
-                if (IsLoaded) throw new Exception($"{Name} Already Loaded");
-
-                var paramters = new LoadSceneParameters(LoadSceneMode.Additive, LocalPhysicsMode.Physics3D);
-                Unity = SceneManager.LoadScene(Name, paramters);
-                IsLoaded = true;
-
-                Physics = Unity.GetPhysicsScene();
+                Physics2D = new Controller($"{ID} 2D", PredictionPhysicsMode.Physics2D);
+                Physics3D = new Controller($"{ID} 3D", PredictionPhysicsMode.Physics3D);
             }
         }
 
@@ -161,13 +212,13 @@ namespace Default
         {
             public static class Objects
             {
-                public static Dictionary<PredictionObject, Timeline> Dictionary { get; private set; }
+                public static Dictionary<PredictionObject, PredictionTimeline> Dictionary { get; private set; }
 
-                public static Timeline Add(PredictionObject target)
+                public static PredictionTimeline Add(PredictionObject target)
                 {
                     if (Dictionary.TryGetValue(target, out var points) == false)
                     {
-                        points = new Timeline();
+                        points = new PredictionTimeline();
                         Dictionary[target] = points;
                     }
 
@@ -208,13 +259,13 @@ namespace Default
 
                 static Objects()
                 {
-                    Dictionary = new Dictionary<PredictionObject, Timeline>();
+                    Dictionary = new Dictionary<PredictionObject, PredictionTimeline>();
                 }
             }
 
             public static class Prefabs
             {
-                public static Dictionary<Timeline, Entry> Dictionary { get; private set; }
+                public static Dictionary<PredictionTimeline, Entry> Dictionary { get; private set; }
 
                 public struct Entry
                 {
@@ -246,11 +297,11 @@ namespace Default
                     }
                 }
 
-                public static Timeline Add(GameObject prefab, Action<GameObject> action)
+                public static PredictionTimeline Add(GameObject prefab, PredictionPhysicsMode mode, Action<GameObject> action)
                 {
-                    var timeline = new Timeline();
+                    var timeline = new PredictionTimeline();
 
-                    var instance = Clone(prefab);
+                    var instance = Clone(prefab, mode);
                     instance.SetActive(false);
 
                     var entry = new Entry(prefab, instance, action);
@@ -289,7 +340,7 @@ namespace Default
                         entry.Finish();
                 }
 
-                public static bool Remove(Timeline timeline)
+                public static bool Remove(PredictionTimeline timeline)
                 {
                     if(Dictionary.TryGetValue(timeline, out var entry))
                         Object.Destroy(entry.Instance);
@@ -311,7 +362,7 @@ namespace Default
 
                 static Prefabs()
                 {
-                    Dictionary = new Dictionary<Timeline, Entry>();
+                    Dictionary = new Dictionary<PredictionTimeline, Entry>();
                 }
             }
 
@@ -359,13 +410,12 @@ namespace Default
         public static event SimualateDelegate OnSimulate;
         public static void Simulate(int iterations)
         {
-            Scenes.Validate();
-
             Record.Prepare();
 
             for (int i = 0; i < iterations; i++)
             {
-                Scenes.Physics.Simulate(Time.fixedDeltaTime);
+                Scenes.Physics2D.Simulate(Time.fixedDeltaTime);
+                Scenes.Physics3D.Simulate(Time.fixedDeltaTime);
 
                 Record.Iterate();
             }
@@ -389,15 +439,17 @@ namespace Default
             PlayerLoop.SetPlayerLoop(loop);
         }
 
-        public static GameObject Clone(GameObject source)
+        public static GameObject Clone(GameObject source, PredictionPhysicsMode mode)
         {
-            Scenes.Validate();
+            Scenes.Get(mode).Validate();
 
             PredictionObject.CloneFlag = true;
             var instance = Object.Instantiate(source);
             instance.name = source.name;
 
-            SceneManager.MoveGameObjectToScene(instance, Scenes.Unity);
+            var scene = Scenes.Get(mode);
+
+            SceneManager.MoveGameObjectToScene(instance, scene.Unity);
             PredictionObject.CloneFlag = false;
 
             Layers.Set(instance);
@@ -422,10 +474,46 @@ namespace Default
             }
         }
 
-        public class Timeline : List<Vector3>
+        public static LocalPhysicsMode ConvertMode(PredictionPhysicsMode mode)
         {
+            switch (mode)
+            {
+                case PredictionPhysicsMode.Physics2D:
+                    return LocalPhysicsMode.Physics2D;
 
+                case PredictionPhysicsMode.Physics3D:
+                    return LocalPhysicsMode.Physics3D;
+            }
+
+            throw new NotImplementedException();
         }
+
+        public static PredictionPhysicsMode CheckPhysicsMode(GameObject gameObject) => CheckPhysicsMode(gameObject, PredictionPhysicsMode.Physics3D);
+        public static PredictionPhysicsMode CheckPhysicsMode(GameObject gameObject, PredictionPhysicsMode fallback)
+        {
+            if (Has<Collider>()) return PredictionPhysicsMode.Physics3D;
+            if (Has<Collider2D>()) return PredictionPhysicsMode.Physics2D;
+
+            return fallback;
+
+            bool Has<T>()
+            {
+                var component = gameObject.GetComponentInChildren<T>(true);
+
+                return component != null;
+            }
+        }
+    }
+
+    public enum PredictionPhysicsMode
+    {
+        Physics2D,
+        Physics3D,
+    }
+
+    public class PredictionTimeline : List<Vector3>
+    {
+
     }
 
     public interface IPredictionPersistantObject { }

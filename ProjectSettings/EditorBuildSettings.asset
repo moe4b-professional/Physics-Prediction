@@ -4,11 +4,5 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes:
-  - enabled: 1
-    path: Assets/Prediction System/Example/Projectile Shooter/Projectile Shooter.unity
-    guid: 2992027415cc9f8428e17ccbbf231ccd
-  - enabled: 1
-    path: Assets/Prediction System/Prediction Scene.unity
-    guid: 86e06eadaeed3484686d80619ef387b0
+  m_Scenes: []
   m_configObjects: {}
