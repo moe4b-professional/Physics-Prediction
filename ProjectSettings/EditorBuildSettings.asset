@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Gameplay Scene.unity
+    path: Assets/Prediction System/Example/Projectile Shooter/Projectile Shooter.unity
     guid: 2992027415cc9f8428e17ccbbf231ccd
   - enabled: 1
     path: Assets/Prediction System/Prediction Scene.unity

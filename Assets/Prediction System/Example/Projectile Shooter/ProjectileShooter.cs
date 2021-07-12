@@ -54,6 +54,10 @@ namespace Default
 			public int Iterations => iterations;
 
 			[SerializeField]
+			int rate = 30;
+			public int Rate => rate;
+
+			[SerializeField]
             LineRenderer line = default;
             public LineRenderer Line => line;
         }
@@ -64,8 +68,10 @@ namespace Default
 
         void Start()
         {
-			InstanceContainer = new GameObject("Projectiles Container").transform;
-		}
+            InstanceContainer = new GameObject("Projectiles Container").transform;
+
+			StartCoroutine(Procedure());
+        }
 
         void Update()
         {
@@ -117,10 +123,15 @@ namespace Default
 			rigidbody.transform.rotation = transform.rotation;
 		}
 
-		void FixedUpdate()
+		IEnumerator Procedure()
         {
-			Predict();
-		}
+			while(true)
+            {
+				yield return new WaitForSeconds(1f / prediction.Rate);
+
+				Predict();
+            }
+        }
 
 		void Predict()
         {

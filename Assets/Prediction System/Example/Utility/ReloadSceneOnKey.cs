@@ -19,16 +19,14 @@ using Random = UnityEngine.Random;
 
 namespace Default
 {
-	public class Sandbox : MonoBehaviour
+	public class ReloadSceneOnKey : MonoBehaviour
 	{
-        void Start()
-        {
-            
-        }
+        [SerializeField]
+        KeyCode key = KeyCode.R;
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.R))
+            if (Input.GetKeyDown(key))
                 SceneManager.LoadScene(gameObject.scene.buildIndex);
         }
     }
