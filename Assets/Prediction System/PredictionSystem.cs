@@ -234,31 +234,6 @@ namespace Default
             }
         }
 
-        public static class Layers
-        {
-            public const string Name = "Prediction";
-
-            public static int Index { get; private set; } = LayerMask.NameToLayer(Name);
-
-            internal static void Prepare()
-            {
-                for (int layer = 0; layer < 31; layer++)
-                {
-                    var ignore = layer != Index;
-                    Physics.IgnoreLayerCollision(Index, layer, ignore);
-                }
-            }
-
-            public static void Set(GameObject gameObject) => Set(gameObject, Index);
-            public static void Set(GameObject gameObject, int layer)
-            {
-                gameObject.layer = layer;
-
-                foreach (Transform child in gameObject.transform)
-                    Set(child.gameObject, layer);
-            }
-        }
-
         public static class Record
         {
             public static class Objects
@@ -449,7 +424,6 @@ namespace Default
 
             Objects.Prepare();
             Scenes.Prepare();
-            Layers.Prepare();
         }
 
         static void Update()
@@ -502,7 +476,6 @@ namespace Default
             SceneManager.MoveGameObjectToScene(instance, scene.Unity);
             PredictionObject.CloneFlag = false;
 
-            Layers.Set(instance);
             DestoryAllNonEssentialComponents(instance);
 
             return instance;
