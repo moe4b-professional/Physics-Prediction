@@ -73,13 +73,17 @@ namespace Default
             InstanceContainer = new GameObject("Projectiles Container").transform;
 
 			StartCoroutine(Procedure());
-
-			timeline = PredictionSystem.Record.Prefabs.Add(prefab, Shoot);
 		}
 
         void Update()
         {
 			LookAtMouse();
+
+			if(Input.GetKeyDown(Key))
+				timeline = PredictionSystem.Record.Prefabs.Add(prefab, Shoot);
+
+			if (Input.GetKeyUp(Key))
+				PredictionSystem.Record.Prefabs.Remove(timeline);
 
 			Shoot();
 		}
@@ -154,5 +158,5 @@ namespace Default
 					prediction.Line.SetPosition(i, timeline[i]);
 			}
 		}
-	}
+    }
 }
