@@ -61,6 +61,7 @@ namespace Default
                 Dictionary.Clear();
             }
 
+            #region Anchor
             public static void Anchor()
             {
                 foreach (var pair in Dictionary)
@@ -87,8 +88,8 @@ namespace Default
                 copy.position = original.position;
                 copy.rotation = original.rotation;
 
-                copy.velocity = Vector3.zero;
-                copy.angularVelocity = Vector3.zero;
+                copy.velocity = original.velocity;
+                copy.angularVelocity = original.angularVelocity;
             }
 
             static void AnchorRigidbody2D(Rigidbody2D original, Rigidbody2D copy)
@@ -96,9 +97,10 @@ namespace Default
                 copy.position = original.position;
                 copy.rotation = original.rotation;
 
-                copy.velocity = Vector2.zero;
-                copy.angularVelocity = 0f;
+                copy.velocity = original.velocity;
+                copy.angularVelocity = original.angularVelocity;
             }
+            #endregion
 
             static Objects()
             {
@@ -323,6 +325,12 @@ namespace Default
                     }
                 }
 
+                public static PredictionTimeline Add(GameObject prefab, Action<GameObject> action)
+                {
+                    var mode = CheckPhysicsMode(prefab);
+
+                    return Add(prefab, mode, action);
+                }
                 public static PredictionTimeline Add(GameObject prefab, PredictionPhysicsMode mode, Action<GameObject> action)
                 {
                     var timeline = new PredictionTimeline();
@@ -501,7 +509,7 @@ namespace Default
             }
         }
 
-        public static LocalPhysicsMode ConvertMode(PredictionPhysicsMode mode)
+        public static LocalPhysicsMode ConvertPhysicsMode(PredictionPhysicsMode mode)
         {
             switch (mode)
             {
