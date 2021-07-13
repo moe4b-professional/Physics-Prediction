@@ -43,6 +43,8 @@ namespace MB.PhysicsPrediction
 
         void Start()
         {
+            line.useWorldSpace = true;
+
             timeline = PredictionSystem.Record.Objects.Add(Target);
 
             PredictionSystem.OnSimulate += PredictionSimulateCallback;
