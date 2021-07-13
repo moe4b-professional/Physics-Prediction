@@ -30,9 +30,13 @@ namespace MB.PhysicsPrediction
 
         PredictionTimeline timeline;
 
+        public bool IsClone { get; protected set; }
+
         void Awake()
         {
-            if (PredictionSystem.Clone.Flag) return;
+            IsClone = PredictionSystem.Clone.Flag;
+
+            if (IsClone) return;
 
             Target = GetComponent<PredictionObject>();
         }
@@ -81,7 +85,7 @@ namespace MB.PhysicsPrediction
 
         void OnDestroy()
         {
-            if (PredictionSystem.Clone.Flag) return;
+            if (IsClone) return;
 
             PredictionSystem.Record.Objects.Remove(timeline);
 

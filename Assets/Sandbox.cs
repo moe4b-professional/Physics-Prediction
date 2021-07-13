@@ -17,7 +17,9 @@ using UnityEditorInternal;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace MB.PhysicsPrediction
+using MB.PhysicsPrediction;
+
+namespace Default
 {
 	public class Sandbox : MonoBehaviour
 	{
@@ -25,8 +27,15 @@ namespace MB.PhysicsPrediction
 		[MenuItem("Sandbox/Execute")]
 		public static void Execute()
         {
-			var material = new PhysicsMaterial2D();
+			PredictionSystem.Clone.EvaluateComponentPersistence = EvaluateComponentPersistence;
+			bool EvaluateComponentPersistence(GameObject gameObject, Component component)
+			{
+				if (component.tag == "Persistent") return true;
 
+				return false;
+			}
+
+			var material = new PhysicsMaterial2D();
 			AssetDatabase.CreateAsset(material, "Assets/Material.physicsMaterial2D");
         }
 #endif

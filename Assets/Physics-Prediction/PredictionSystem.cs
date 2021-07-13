@@ -143,7 +143,7 @@ namespace MB.PhysicsPrediction
             /// Assign a method to evaluate component destruction on a per component basis
             /// </summary>
             public static EvaluateComponentPersistenceDelegate EvaluateComponentPersistence { get; set; }
-            public delegate bool EvaluateComponentPersistenceDelegate(Component component);
+            public delegate bool EvaluateComponentPersistenceDelegate(GameObject gameObject, Component component);
 
             static void DestoryAllNonPersistentComponents(GameObject gameObject)
             {
@@ -158,7 +158,7 @@ namespace MB.PhysicsPrediction
                     var type = component.GetType();
                     if (PersistentComponents.Contains(type)) continue;
 
-                    if (EvaluateComponentPersistence != null) if (EvaluateComponentPersistence(component)) continue;
+                    if (EvaluateComponentPersistence != null) if (EvaluateComponentPersistence(gameObject, component)) continue;
 
                     Object.DestroyImmediate(component);
                 }
