@@ -107,20 +107,23 @@ namespace MB.PhysicsPrediction
 
         public static class Clone
         {
+            public static bool Flag { get; private set; }
             internal static GameObject Retrieve(GameObject source, PredictionPhysicsMode mode)
             {
+                Flag = true;
+
                 Scenes.Get(mode).Validate();
 
-                PredictionObject.CloneFlag = true;
                 var instance = Object.Instantiate(source);
                 instance.name = source.name;
 
                 var scene = Scenes.Get(mode);
 
                 SceneManager.MoveGameObjectToScene(instance, scene.Unity);
-                PredictionObject.CloneFlag = false;
 
                 DestoryAllNonPersistentComponents(instance);
+
+                Flag = false;
 
                 return instance;
             }
@@ -157,7 +160,7 @@ namespace MB.PhysicsPrediction
 
                     if (EvaluateComponentPersistence != null) if (EvaluateComponentPersistence(component)) continue;
 
-                    Object.Destroy(component);
+                    Object.DestroyImmediate(component);
                 }
             }
         }
@@ -294,26 +297,23 @@ namespace MB.PhysicsPrediction
         {
             public static class Objects
             {
-                public static Dictionary<PredictionObject, PredictionTimeline> Collection { get; private set; }
+                public static Dictionary<PredictionTimeline, PredictionObject> Collection { get; private set; }
 
                 public static PredictionTimeline Add(PredictionObject target)
                 {
                     if (target.IsClone)
                         throw new ArgumentException("Cannot Record A Clone, Please Pass in the Original Object");
 
-                    if (Collection.TryGetValue(target, out var points) == false)
-                    {
-                        points = new PredictionTimeline();
-                        Collection[target] = points;
-                    }
+                    var timeline = new PredictionTimeline();
+                    Collection[timeline] = target;
 
-                    return points;
+                    return timeline;
                 }
 
                 #region Procedure
                 internal static void Prepare()
                 {
-                    foreach (var timeline in Collection.Values)
+                    foreach (var timeline in Collection.Keys)
                         timeline.Clear();
                 }
 
@@ -321,8 +321,8 @@ namespace MB.PhysicsPrediction
                 {
                     foreach (var pair in Collection)
                     {
-                        var target = pair.Key;
-                        var timeline = pair.Value;
+                        var timeline = pair.Key;
+                        var target = pair.Value;
 
                         timeline.Add(target.Clone.Position, target.Clone.Rotation);
                     }
@@ -334,9 +334,9 @@ namespace MB.PhysicsPrediction
                 }
                 #endregion
 
-                public static void Remove(PredictionObject target)
+                public static bool Remove(PredictionTimeline timeline)
                 {
-                    Collection.Remove(target);
+                    return Collection.Remove(timeline);
                 }
 
                 internal static void Clear()
@@ -346,7 +346,7 @@ namespace MB.PhysicsPrediction
 
                 static Objects()
                 {
-                    Collection = new Dictionary<PredictionObject, PredictionTimeline>();
+                    Collection = new Dictionary<PredictionTimeline, PredictionObject>();
                 }
             }
 

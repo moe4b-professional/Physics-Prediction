@@ -32,6 +32,8 @@ namespace MB.PhysicsPrediction
 
         void Awake()
         {
+            if (PredictionSystem.Clone.Flag) return;
+
             Target = GetComponent<PredictionObject>();
         }
 
@@ -79,7 +81,9 @@ namespace MB.PhysicsPrediction
 
         void OnDestroy()
         {
-            PredictionSystem.Record.Objects.Remove(Target);
+            if (PredictionSystem.Clone.Flag) return;
+
+            PredictionSystem.Record.Objects.Remove(timeline);
 
             PredictionSystem.OnSimulate -= PredictionSimulateCallback;
 

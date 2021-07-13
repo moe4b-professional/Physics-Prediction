@@ -65,8 +65,6 @@ namespace MB.PhysicsPrediction
             }
         }
 
-        public static bool CloneFlag { get; internal set; }
-
         public bool IsOriginal { get; protected set; }
         public PredictionObject Clone
         {
@@ -90,7 +88,7 @@ namespace MB.PhysicsPrediction
             rigidbody = GetComponent<Rigidbody>();
             rigidbody2D = GetComponent<Rigidbody2D>();
 
-            IsClone = CloneFlag;
+            IsClone = PredictionSystem.Clone.Flag;
             IsOriginal = !IsClone;
 
             if (IsOriginal) PredictionSystem.Objects.Add(this, mode);

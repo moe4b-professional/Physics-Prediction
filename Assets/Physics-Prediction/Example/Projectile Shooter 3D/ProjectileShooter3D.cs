@@ -80,7 +80,7 @@ namespace MB.PhysicsPrediction
 			LookAtMouse();
 
 			if(Input.GetKeyDown(Key))
-				timeline = PredictionSystem.Record.Prefabs.Add(prefab, Shoot);
+				timeline = PredictionSystem.Record.Prefabs.Add(prefab, Launch);
 
 			if (Input.GetKeyUp(Key))
 				PredictionSystem.Record.Prefabs.Remove(timeline);
@@ -107,22 +107,18 @@ namespace MB.PhysicsPrediction
 			{
 				prediction.Line.positionCount = 0;
 
-				var instance = Instantiate(prefab).GetComponent<Rigidbody>();
+				var instance = Instantiate(prefab);
 				instance.transform.SetParent(InstanceContainer);
-				Shoot(instance);
+				Launch(instance);
 
 				TrajectoryPredictionDrawer.HideAll();
 			}
 		}
 
-		void Shoot(GameObject gameObject)
+		void Launch(GameObject gameObject)
 		{
 			var rigidbody = gameObject.GetComponent<Rigidbody>();
 
-			Shoot(rigidbody);
-		}
-		void Shoot(Rigidbody rigidbody)
-		{
 			var relativeForce = transform.TransformVector(force.Vector);
 
 			rigidbody.AddForce(relativeForce, force.Mode);
