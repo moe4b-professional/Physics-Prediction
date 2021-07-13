@@ -4,5 +4,13 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Physics-Prediction/Example/Projectile Shooter 3D/Projectile Shooter
+      3D.unity
+    guid: aaa4eeacc91c6ec4baf9d56a236d4a41
+  - enabled: 1
+    path: Assets/Physics-Prediction/Example/Projectile Shooter 2D/Projectile Shooter
+      2D.unity
+    guid: 2992027415cc9f8428e17ccbbf231ccd
   m_configObjects: {}
