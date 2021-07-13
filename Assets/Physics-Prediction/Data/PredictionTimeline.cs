@@ -19,15 +19,13 @@ using Random = UnityEngine.Random;
 
 namespace MB.PhysicsPrediction
 {
-	public class ReloadSceneOnKey : MonoBehaviour
-	{
-        [SerializeField]
-        KeyCode key = KeyCode.R;
-
-        void Update()
+    public class PredictionTimeline : List<PredictionCoordinate>
+    {
+        public virtual void Add(Vector3 position, Quaternion rotation)
         {
-            if (Input.GetKeyDown(key))
-                SceneManager.LoadScene(gameObject.scene.buildIndex);
+            var coordinate = new PredictionCoordinate(position, rotation);
+
+            Add(coordinate);
         }
     }
 }

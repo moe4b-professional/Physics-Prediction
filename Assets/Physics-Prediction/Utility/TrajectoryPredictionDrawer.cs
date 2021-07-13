@@ -17,11 +17,12 @@ using UnityEditorInternal;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace PhysicsPrediction
+namespace MB.PhysicsPrediction
 {
 	[RequireComponent(typeof(PredictionObject))]
+    [AddComponentMenu(PredictionSystem.Path + "Utility/" + "Trajectory Prediction Drawer")]
 	public class TrajectoryPredictionDrawer : MonoBehaviour
-	{
+    {
         [SerializeField]
         LineRenderer line = default;
 
@@ -49,7 +50,7 @@ namespace PhysicsPrediction
             line.positionCount = timeline.Count;
 
             for (int i = 0; i < timeline.Count; i++)
-                line.SetPosition(i, timeline[i]);
+                line.SetPosition(i, timeline[i].Position);
         }
 
         #region Visibility

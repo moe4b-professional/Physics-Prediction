@@ -20,10 +20,12 @@ using Random = UnityEngine.Random;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 
-namespace PhysicsPrediction
+namespace MB.PhysicsPrediction
 {
     public static class PredictionSystem
     {
+        public const string Path = "Prediction System/";
+
         public static class Objects
         {
             public static Dictionary<PredictionObject, PredictionObject> Collection { get; private set; }
@@ -239,6 +241,9 @@ namespace PhysicsPrediction
 
                 public static PredictionTimeline Add(PredictionObject target)
                 {
+                    if (target.IsClone)
+                        throw new ArgumentException("Cannot Record A Clone, Please Pass in the Original Object");
+
                     if (Collection.TryGetValue(target, out var points) == false)
                     {
                         points = new PredictionTimeline();
@@ -262,7 +267,7 @@ namespace PhysicsPrediction
                         var target = pair.Key;
                         var timeline = pair.Value;
 
-                        timeline.Add(target.Clone.Position);
+                        timeline.Add(target.Clone.Position, target.Clone.Rotation);
                     }
                 }
 
@@ -292,7 +297,7 @@ namespace PhysicsPrediction
             {
                 public static Dictionary<PredictionTimeline, Entry> Collection { get; private set; }
 
-                public struct Entry
+                public class Entry
                 {
                     public GameObject Prefab { get; private set; }
                     public GameObject Instance { get; private set; }
@@ -307,6 +312,9 @@ namespace PhysicsPrediction
 
                     internal void Prepare()
                     {
+                        Instance.transform.position = Prefab.transform.position;
+                        Instance.transform.rotation = Prefab.transform.rotation;
+
                         if (Rigidbody)
                         {
                             Rigidbody.velocity = Vector3.zero;
@@ -381,7 +389,7 @@ namespace PhysicsPrediction
                         var timeline = pair.Key;
                         var entry = pair.Value;
 
-                        timeline.Add(entry.Position);
+                        timeline.Add(entry.Position, entry.Rotation);
                     }
                 }
 
@@ -569,11 +577,6 @@ namespace PhysicsPrediction
     {
         Physics2D,
         Physics3D,
-    }
-
-    public class PredictionTimeline : List<Vector3>
-    {
-
     }
 
     public interface IPredictionPersistantObject { }

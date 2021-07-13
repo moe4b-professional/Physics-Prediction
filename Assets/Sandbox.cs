@@ -17,7 +17,7 @@ using UnityEditorInternal;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace PhysicsPrediction
+namespace MB.PhysicsPrediction
 {
 	public class Sandbox : MonoBehaviour
 	{

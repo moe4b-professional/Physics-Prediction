@@ -1,6 +1,6 @@
 {
-    "name": "Physics-Prediction",
-    "rootNamespace": "PhysicsPrediction",
+    "name": "MB-Physics-Prediction",
+    "rootNamespace": "MB.PhysicsPrediction",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

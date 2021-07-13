@@ -17,7 +17,7 @@ using UnityEditorInternal;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace PhysicsPrediction
+namespace MB.PhysicsPrediction
 {
 	public class ProjectileShooter3D : MonoBehaviour
 	{
@@ -152,7 +152,7 @@ namespace PhysicsPrediction
 				prediction.Line.positionCount = timeline.Count;
 
 				for (int i = 0; i < timeline.Count; i++)
-					prediction.Line.SetPosition(i, timeline[i]);
+					prediction.Line.SetPosition(i, timeline[i].Position);
 			}
 		}
     }

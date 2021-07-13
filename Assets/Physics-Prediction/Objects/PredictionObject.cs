@@ -17,10 +17,11 @@ using UnityEditorInternal;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace PhysicsPrediction
+namespace MB.PhysicsPrediction
 {
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(ExectionOrder)]
+    [AddComponentMenu(PredictionSystem.Path + "Prediction Object")]
 #pragma warning disable CS0108
     public class PredictionObject : MonoBehaviour, IPredictionPersistantObject
     {
@@ -39,11 +40,6 @@ namespace PhysicsPrediction
         {
             get => transform.rotation;
             set => transform.rotation = value;
-        }
-        public Vector3 LocalScale
-        {
-            get => transform.localScale;
-            set => transform.localScale = value;
         }
 
         public bool Active
