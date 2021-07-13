@@ -28,11 +28,6 @@ namespace PhysicsPrediction
         {
             public static Dictionary<PredictionObject, PredictionObject> Collection { get; private set; }
 
-            internal static void Prepare()
-            {
-
-            }
-
             public static PredictionObject Add(PredictionObject target, PredictionPhysicsMode mode)
             {
                 var copy = Clone(target.gameObject, mode).GetComponent<PredictionObject>();
@@ -399,7 +394,7 @@ namespace PhysicsPrediction
 
                 public static bool Remove(PredictionTimeline timeline)
                 {
-                    if(Collection.TryGetValue(timeline, out var entry))
+                    if (Collection.TryGetValue(timeline, out var entry))
                         Object.Destroy(entry.Instance);
 
                     return Collection.Remove(timeline);
@@ -451,7 +446,7 @@ namespace PhysicsPrediction
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-        static void Prepare()
+        static void OnLoad()
         {
 #if UNITY_EDITOR
             ///In Editor only as a visual showcase of the anchoring of objects
@@ -459,7 +454,6 @@ namespace PhysicsPrediction
             RegisterPlayerLoop<PreLateUpdate>(Objects.Anchor);
 #endif
 
-            Objects.Prepare();
             Scenes.Prepare();
         }
 
