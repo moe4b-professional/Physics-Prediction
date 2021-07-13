@@ -32,7 +32,7 @@ namespace MB.PhysicsPrediction
 
             public static PredictionObject Add(PredictionObject target, PredictionPhysicsMode mode)
             {
-                var copy = Clone(target.gameObject, mode).GetComponent<PredictionObject>();
+                var copy = Clone.Retrieve(target.gameObject, mode).GetComponent<PredictionObject>();
 
                 target.Other = copy;
                 copy.Other = target;
@@ -53,7 +53,7 @@ namespace MB.PhysicsPrediction
                 return true;
             }
 
-            public static void Clear()
+            internal static void Clear()
             {
                 Collection.Clear();
             }
@@ -73,14 +73,14 @@ namespace MB.PhysicsPrediction
                 }
             }
 
-            static void AnchorTransform(Transform original, Transform copy)
+            internal static void AnchorTransform(Transform original, Transform copy)
             {
                 copy.position = original.position;
                 copy.rotation = original.rotation;
                 copy.localScale = original.localScale;
             }
 
-            static void AnchorRigidbody(Rigidbody original, Rigidbody copy)
+            internal static void AnchorRigidbody(Rigidbody original, Rigidbody copy)
             {
                 copy.position = original.position;
                 copy.rotation = original.rotation;
@@ -89,7 +89,7 @@ namespace MB.PhysicsPrediction
                 copy.angularVelocity = original.angularVelocity;
             }
 
-            static void AnchorRigidbody2D(Rigidbody2D original, Rigidbody2D copy)
+            internal static void AnchorRigidbody2D(Rigidbody2D original, Rigidbody2D copy)
             {
                 copy.position = original.position;
                 copy.rotation = original.rotation;
@@ -102,6 +102,63 @@ namespace MB.PhysicsPrediction
             static Objects()
             {
                 Collection = new Dictionary<PredictionObject, PredictionObject>();
+            }
+        }
+
+        public static class Clone
+        {
+            internal static GameObject Retrieve(GameObject source, PredictionPhysicsMode mode)
+            {
+                Scenes.Get(mode).Validate();
+
+                PredictionObject.CloneFlag = true;
+                var instance = Object.Instantiate(source);
+                instance.name = source.name;
+
+                var scene = Scenes.Get(mode);
+
+                SceneManager.MoveGameObjectToScene(instance, scene.Unity);
+                PredictionObject.CloneFlag = false;
+
+                DestoryAllNonPersistentComponents(instance);
+
+                return instance;
+            }
+
+            /// <summary>
+            /// Add a type to it to ensure it doesn't get destroyed when creating a clone
+            /// </summary>
+            public static HashSet<Type> PersistentComponents { get; private set; } = new HashSet<Type>
+            {
+                typeof(Transform),
+
+                typeof(Rigidbody),
+                typeof(Rigidbody2D),
+            };
+
+            /// <summary>
+            /// Assign a method to evaluate component destruction on a per component basis
+            /// </summary>
+            public static EvaluateComponentPersistenceDelegate EvaluateComponentPersistence { get; set; }
+            public delegate bool EvaluateComponentPersistenceDelegate(Component component);
+
+            static void DestoryAllNonPersistentComponents(GameObject gameObject)
+            {
+                var components = gameObject.GetComponentsInChildren<Component>(true);
+
+                foreach (var component in components)
+                {
+                    if (component is Collider) continue;
+                    if (component is Collider2D) continue;
+                    if (component is IPredictionPersistantObject) continue;
+
+                    var type = component.GetType();
+                    if (PersistentComponents.Contains(type)) continue;
+
+                    if (EvaluateComponentPersistence != null) if (EvaluateComponentPersistence(component)) continue;
+
+                    Object.Destroy(component);
+                }
             }
         }
 
@@ -359,7 +416,7 @@ namespace MB.PhysicsPrediction
                 {
                     var timeline = new PredictionTimeline();
 
-                    var instance = Clone(prefab, mode);
+                    var instance = Clone.Retrieve(prefab, mode);
                     instance.SetActive(false);
 
                     var entry = new Entry(prefab, instance, action);
@@ -484,52 +541,9 @@ namespace MB.PhysicsPrediction
             OnSimulate?.Invoke(iterations);
         }
 
-        public static GameObject Clone(GameObject source, PredictionPhysicsMode mode)
-        {
-            Scenes.Get(mode).Validate();
-
-            PredictionObject.CloneFlag = true;
-            var instance = Object.Instantiate(source);
-            instance.name = source.name;
-
-            var scene = Scenes.Get(mode);
-
-            SceneManager.MoveGameObjectToScene(instance, scene.Unity);
-            PredictionObject.CloneFlag = false;
-
-            DestoryAllNonEssentialComponents(instance);
-
-            return instance;
-        }
-
-        public static HashSet<Type> PersistentComponents { get; private set; } = new HashSet<Type>
-        {
-            typeof(Transform),
-
-            typeof(Rigidbody),
-            typeof(Rigidbody2D),
-        };
-
-        public static void DestoryAllNonEssentialComponents(GameObject gameObject)
-        {
-            var components = gameObject.GetComponentsInChildren<Component>(true);
-
-            foreach (var component in components)
-            {
-                if (component is Collider) continue;
-                if (component is Collider2D) continue;
-                if (component is IPredictionPersistantObject) continue;
-
-                var type = component.GetType();
-                if (PersistentComponents.Contains(type)) continue;
-
-                Object.Destroy(component);
-            }
-        }
-
         //Utility
 
-        public static void RegisterPlayerLoop<TType>(PlayerLoopSystem.UpdateFunction callback)
+        internal static void RegisterPlayerLoop<TType>(PlayerLoopSystem.UpdateFunction callback)
         {
             var loop = PlayerLoop.GetCurrentPlayerLoop();
 

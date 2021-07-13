@@ -116,11 +116,11 @@ namespace MB.PhysicsPrediction
 		}
 
 		void Shoot(GameObject gameObject)
-        {
+		{
 			var rigidbody = gameObject.GetComponent<Rigidbody>();
 
 			Shoot(rigidbody);
-        }
+		}
 		void Shoot(Rigidbody rigidbody)
 		{
 			var relativeForce = transform.TransformVector(force.Vector);
