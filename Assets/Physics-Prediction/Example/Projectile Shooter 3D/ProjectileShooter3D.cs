@@ -60,9 +60,9 @@ namespace MB.PhysicsPrediction
 			[SerializeField]
             LineRenderer line = default;
             public LineRenderer Line => line;
-        }
 
-		PredictionTimeline timeline;
+			internal PredictionRecorder Target;
+        }
 
 		public const KeyCode Key = KeyCode.Mouse0;
 
@@ -72,18 +72,14 @@ namespace MB.PhysicsPrediction
         {
             InstanceContainer = new GameObject("Projectiles Container").transform;
 
-			StartCoroutine(Procedure());
+            prediction.Target = PredictionSystem.Prefabs.Add(prefab, Launch);
+
+            StartCoroutine(Procedure());
 		}
 
         void Update()
         {
 			LookAtMouse();
-
-			if(Input.GetKeyDown(Key))
-				timeline = PredictionSystem.Record.Prefabs.Add(prefab, Launch);
-
-			if (Input.GetKeyUp(Key))
-				PredictionSystem.Record.Prefabs.Remove(timeline);
 
 			Shoot();
 		}
@@ -127,29 +123,28 @@ namespace MB.PhysicsPrediction
 			rigidbody.transform.rotation = transform.rotation;
 		}
 
-		IEnumerator Procedure()
+        IEnumerator Procedure()
         {
-			while(true)
+            while (true)
             {
-				yield return new WaitForSeconds(1f / prediction.Rate);
+                yield return new WaitForSeconds(1f / prediction.Rate);
 
-				Predict();
+                if (Input.GetKey(Key) == false) continue;
+
+                PredictionSystem.Simulate(prediction.Iterations);
+
+                TrajectoryPredictionDrawer.ShowAll();
+
+                prediction.Line.positionCount = prediction.Target.Snapshots;
+
+                for (int i = 0; i < prediction.Target.Snapshots; i++)
+                    prediction.Line.SetPosition(i, prediction.Target.Coordinates[i].Position);
             }
         }
 
-		void Predict()
+        void OnDestroy()
         {
-			if (Input.GetKey(Key))
-			{
-				PredictionSystem.Simulate(prediction.Iterations);
-
-				TrajectoryPredictionDrawer.ShowAll();
-
-				prediction.Line.positionCount = timeline.Count;
-
-				for (int i = 0; i < timeline.Count; i++)
-					prediction.Line.SetPosition(i, timeline[i].Position);
-			}
-		}
+            PredictionSystem.Prefabs.Remove(prediction.Target);
+        }
     }
 }

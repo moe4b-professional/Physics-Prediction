@@ -60,9 +60,9 @@ namespace MB.PhysicsPrediction
 			[SerializeField]
             LineRenderer line = default;
             public LineRenderer Line => line;
-        }
 
-		PredictionTimeline timeline;
+			internal PredictionRecorder Target;
+        }
 
 		public const KeyCode Key = KeyCode.Mouse0;
 
@@ -72,21 +72,26 @@ namespace MB.PhysicsPrediction
         {
             InstanceContainer = new GameObject("Projectiles Container").transform;
 
-			StartCoroutine(Procedure());
+			prediction.Target = PredictionSystem.Prefabs.Add(prefab, Launch);
+
+            StartCoroutine(Procedure());
 		}
 
         void Update()
         {
 			LookAtMouse();
 
-			if(Input.GetKeyDown(Key))
-				timeline = PredictionSystem.Record.Prefabs.Add(prefab, Launch);
+            if (Input.GetKeyUp(Key))
+            {
+                prediction.Line.positionCount = 0;
 
-			if (Input.GetKeyUp(Key))
-				PredictionSystem.Record.Prefabs.Remove(timeline);
+                var instance = Instantiate(prefab);
+                instance.transform.SetParent(InstanceContainer);
+                Launch(instance);
 
-			Shoot();
-		}
+                TrajectoryPredictionDrawer.HideAll();
+            }
+        }
 
         void LookAtMouse()
         {
@@ -96,20 +101,6 @@ namespace MB.PhysicsPrediction
 
 			float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
 			transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
-		}
-
-		void Shoot()
-		{
-			if (Input.GetKeyUp(Key))
-			{
-				prediction.Line.positionCount = 0;
-
-				var instance = Instantiate(prefab);
-				instance.transform.SetParent(InstanceContainer);
-				Launch(instance);
-
-				TrajectoryPredictionDrawer.HideAll();
-			}
 		}
 
 		void Launch(GameObject gameObject)
@@ -128,25 +119,24 @@ namespace MB.PhysicsPrediction
         {
 			while(true)
             {
-				yield return new WaitForSeconds(1f / prediction.Rate);
+                yield return new WaitForSeconds(1f / prediction.Rate);
 
-				Predict();
+                if (Input.GetKey(Key) == false) continue;
+
+                PredictionSystem.Simulate(prediction.Iterations);
+
+                TrajectoryPredictionDrawer.ShowAll();
+
+                prediction.Line.positionCount = prediction.Target.Snapshots;
+
+                for (int i = 0; i < prediction.Target.Snapshots; i++)
+                    prediction.Line.SetPosition(i, prediction.Target.Coordinates[i].Position);
             }
         }
 
-		void Predict()
-        {
-			if (Input.GetKey(Key))
-			{
-				PredictionSystem.Simulate(prediction.Iterations);
-
-				TrajectoryPredictionDrawer.ShowAll();
-
-				prediction.Line.positionCount = timeline.Count;
-
-				for (int i = 0; i < timeline.Count; i++)
-					prediction.Line.SetPosition(i, timeline[i].Position);
-			}
-		}
-    }
+		void OnDestroy()
+		{
+            PredictionSystem.Prefabs.Remove(prediction.Target);
+        }
+	}
 }

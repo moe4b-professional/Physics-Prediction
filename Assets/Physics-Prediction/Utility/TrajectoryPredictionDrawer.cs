@@ -19,33 +19,20 @@ using Random = UnityEngine.Random;
 
 namespace MB.PhysicsPrediction
 {
-	[RequireComponent(typeof(PredictionObject))]
     [AddComponentMenu(PredictionSystem.Path + "Utility/" + "Trajectory Prediction Drawer")]
 	public class TrajectoryPredictionDrawer : MonoBehaviour
     {
         [SerializeField]
+        PredictionRecorder target;
+
+        [SerializeField]
         LineRenderer line = default;
 
-        public PredictionObject Target { get; protected set; }
-
-        PredictionTimeline timeline;
-
         public bool IsClone { get; protected set; }
-
-        void Awake()
-        {
-            IsClone = PredictionSystem.Clone.Flag;
-
-            if (IsClone) return;
-
-            Target = GetComponent<PredictionObject>();
-        }
 
         void Start()
         {
             line.useWorldSpace = true;
-
-            timeline = PredictionSystem.Record.Objects.Add(Target);
 
             PredictionSystem.OnSimulate += PredictionSimulateCallback;
 
@@ -55,13 +42,12 @@ namespace MB.PhysicsPrediction
 
         void PredictionSimulateCallback(int iterations)
         {
-            line.positionCount = timeline.Count;
+            line.positionCount = target.Snapshots;
 
-            for (int i = 0; i < timeline.Count; i++)
-                line.SetPosition(i, timeline[i].Position);
+            for (int i = 0; i < target.Snapshots; i++)
+                line.SetPosition(i, target.Coordinates[i].Position);
         }
 
-        #region Visibility
         public bool Visibile
         {
             get => line.enabled;
@@ -78,18 +64,14 @@ namespace MB.PhysicsPrediction
         {
             line.enabled = false;
         }
-
         public void Show()
         {
             line.enabled = true;
         }
-        #endregion
 
         void OnDestroy()
         {
             if (IsClone) return;
-
-            PredictionSystem.Record.Objects.Remove(timeline);
 
             PredictionSystem.OnSimulate -= PredictionSimulateCallback;
 

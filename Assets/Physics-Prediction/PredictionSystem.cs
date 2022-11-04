@@ -28,140 +28,195 @@ namespace MB.PhysicsPrediction
 
         public static class Objects
         {
-            public static Dictionary<PredictionObject, PredictionObject> Collection { get; private set; }
+            public static HashSet<PredictionObject> All { get; private set; }
+            public static HashSet<PredictionRecorder> Recordable { get; private set; }
 
-            public static PredictionObject Add(PredictionObject target, PredictionPhysicsMode mode)
+            public static PredictionObject Add(PredictionObject original)
             {
-                var copy = Clone.Retrieve(target.gameObject, mode).GetComponent<PredictionObject>();
+                var duplicate = Clone.Retrieve(original);
 
-                target.Other = copy;
-                copy.Other = target;
+                original.Other = duplicate;
+                duplicate.Other = original;
 
-                Collection.Add(target, copy);
+                All.Add(original);
 
-                return copy;
+                if (original is PredictionRecorder recordable)
+                    Recordable.Add(recordable);
+
+                duplicate.Freeze();
+
+                return duplicate;
             }
-
-            public static bool Remove(PredictionObject target)
+            public static bool Remove(PredictionObject original)
             {
-                if (Collection.Remove(target) == false)
+                if (All.Remove(original) == false)
                     return false;
 
-                if (target && target.Other && target.Other.gameObject)
-                    Object.Destroy(target.Other.gameObject);
+                if (original is PredictionRecorder recordable)
+                    Recordable.Remove(recordable);
+
+                if (original && original.Other)
+                    Object.Destroy(original.Other.gameObject);
 
                 return true;
             }
 
-            internal static void Clear()
-            {
-                Collection.Clear();
-            }
-
-            #region Anchor
             public static void Anchor()
             {
-                foreach (var pair in Collection)
+                foreach (var original in All)
                 {
-                    var original = pair.Key;
-                    var copy = pair.Value;
-
-                    AnchorTransform(original.transform, copy.transform);
-
-                    if (original.HasRigidbody) AnchorRigidbody(original.rigidbody, copy.rigidbody);
-                    if (original.HasRigidbody2D) AnchorRigidbody2D(original.rigidbody2D, copy.rigidbody2D);
+                    var duplicate = original.Other;
+                    duplicate.Anchor();
                 }
             }
-
-            internal static void AnchorTransform(Transform original, Transform copy)
-            {
-                copy.position = original.position;
-                copy.rotation = original.rotation;
-                copy.localScale = original.localScale;
-            }
-
-            internal static void AnchorRigidbody(Rigidbody original, Rigidbody copy)
-            {
-                copy.position = original.position;
-                copy.rotation = original.rotation;
-
-                copy.velocity = original.velocity;
-                copy.angularVelocity = original.angularVelocity;
-            }
-
-            internal static void AnchorRigidbody2D(Rigidbody2D original, Rigidbody2D copy)
-            {
-                copy.position = original.position;
-                copy.rotation = original.rotation;
-
-                copy.velocity = original.velocity;
-                copy.angularVelocity = original.angularVelocity;
-            }
-            #endregion
 
             static Objects()
             {
-                Collection = new Dictionary<PredictionObject, PredictionObject>();
+                All = new();
+                Recordable = new();
+            }
+
+            public static class Clone
+            {
+                public static Transform Container { get; private set; }
+
+                internal static PredictionObject Retrieve(PredictionObject original)
+                {
+                    var scene = Scenes.Get(original.Mode);
+                    scene.Validate();
+
+                    var duplicate = Object.Instantiate(original, Container);
+                    duplicate.name = original.name;
+
+                    InitializeComponents(duplicate);
+                    duplicate.transform.SetParent(default);
+                    SceneManager.MoveGameObjectToScene(duplicate.gameObject, scene.Unity);
+
+                    return duplicate;
+                }
+
+                /// <summary>
+                /// Assign a method to evaluate component destruction on a per component basis
+                /// </summary>
+                public static EvaluateComponentPersistenceDelegate EvaluateComponentPersistence { get; set; }
+                public delegate bool EvaluateComponentPersistenceDelegate(PredictionObject target, Component component);
+
+                static List<Component> ComponentListCache = new();
+
+                static void InitializeComponents(PredictionObject target)
+                {
+                    target.IsClone = true;
+
+                    target.GetComponentsInChildren(true, ComponentListCache);
+
+                    foreach (var component in ComponentListCache)
+                    {
+                        if (component is Transform) continue;
+
+                        if (component is Collider) continue;
+                        if (component is Collider2D) continue;
+
+                        if (component is Rigidbody) continue;
+                        if (component is Rigidbody2D) continue;
+
+                        if (component is PredictionObject) continue;
+
+                        if (component is IPredictionPersistantObject persistant)
+                        {
+                            persistant.IsClone = true;
+                            continue;
+                        }
+
+                        if (EvaluateComponentPersistence?.Invoke(target, component) == true)
+                            continue;
+
+                        Object.DestroyImmediate(component);
+                    }
+                }
+
+                static Clone()
+                {
+                    var gameObject = new GameObject("Prediction Clone Container");
+
+                    gameObject.SetActive(false);
+                    Object.DontDestroyOnLoad(gameObject);
+
+                    Container = gameObject.transform;
+                }
             }
         }
 
-        public static class Clone
+        public static class Prefabs
         {
-            public static bool Flag { get; private set; }
-            internal static GameObject Retrieve(GameObject source, PredictionPhysicsMode mode)
+            public static Dictionary<PredictionRecorder, Entry> Collection { get; private set; }
+            public readonly struct Entry
             {
-                Flag = true;
+                public readonly GameObject Prefab { get; }
 
-                Scenes.Get(mode).Validate();
+                public readonly PredictionRecorder Original { get; }
+                public readonly PredictionRecorder Clone => Original.Other;
 
-                var instance = Object.Instantiate(source);
-                instance.name = source.name;
+                public readonly Action<GameObject> Action { get; }
 
-                var scene = Scenes.Get(mode);
+                internal void Start()
+                {
+                    Original.gameObject.SetActive(true);
 
-                SceneManager.MoveGameObjectToScene(instance, scene.Unity);
+                    Action(Clone.gameObject);
+                }
+                internal void End()
+                {
+                    Original.gameObject.SetActive(false);
+                }
 
-                DestoryAllNonPersistentComponents(instance);
-
-                Flag = false;
-
-                return instance;
+                public Entry(GameObject prefab, PredictionRecorder original, Action<GameObject> action)
+                {
+                    this.Prefab = prefab;
+                    this.Original = original;
+                    this.Action = action;
+                }
             }
 
-            /// <summary>
-            /// Add a type to it to ensure it doesn't get destroyed when creating a clone
-            /// </summary>
-            public static HashSet<Type> PersistentComponents { get; private set; } = new HashSet<Type>
+            public static PredictionRecorder Add(GameObject prefab, Action<GameObject> action)
             {
-                typeof(Transform),
+                var original = Object.Instantiate(prefab).GetComponent<PredictionRecorder>();
 
-                typeof(Rigidbody),
-                typeof(Rigidbody2D),
-            };
+                if (original == null)
+                    throw new ArgumentException($"Prefab Has no Prediction Object Component");
 
-            /// <summary>
-            /// Assign a method to evaluate component destruction on a per component basis
-            /// </summary>
-            public static EvaluateComponentPersistenceDelegate EvaluateComponentPersistence { get; set; }
-            public delegate bool EvaluateComponentPersistenceDelegate(GameObject gameObject, Component component);
+                original.Rename($"{prefab.name} - Predicated");
 
-            static void DestoryAllNonPersistentComponents(GameObject gameObject)
+                var entry = new Entry(prefab, original, action);
+                Collection.Add(original, entry);
+
+                return original;
+            }
+            public static bool Remove(PredictionRecorder target)
             {
-                var components = gameObject.GetComponentsInChildren<Component>(true);
+                if (Collection.Remove(target, out var entry) == false)
+                    return false;
 
-                foreach (var component in components)
-                {
-                    if (component is Collider) continue;
-                    if (component is Collider2D) continue;
-                    if (component is IPredictionPersistantObject) continue;
+                var duplicate = target.Other;
 
-                    var type = component.GetType();
-                    if (PersistentComponents.Contains(type)) continue;
+                if(duplicate && duplicate.gameObject) Object.Destroy(duplicate.gameObject);
 
-                    if (EvaluateComponentPersistence != null) if (EvaluateComponentPersistence(gameObject, component)) continue;
+                return true;
+            }
 
-                    Object.DestroyImmediate(component);
-                }
+            public static void Start()
+            {
+                foreach (var entry in Collection.Values)
+                    entry.Start();
+            }
+            public static void End()
+            {
+                foreach (var entry in Collection.Values)
+                    entry.End();
+            }
+
+            static Prefabs()
+            {
+                Collection = new Dictionary<PredictionRecorder, Entry>();
             }
         }
 
@@ -233,8 +288,6 @@ namespace MB.PhysicsPrediction
                     if (scene != Unity) return;
 
                     IsLoaded = false;
-                    Objects.Clear();
-                    Record.Clear();
                 }
 
                 public abstract void Simulate(float time);
@@ -295,218 +348,46 @@ namespace MB.PhysicsPrediction
 
         public static class Record
         {
-            public static class Objects
+            internal static void Start()
             {
-                public static Dictionary<PredictionTimeline, PredictionObject> Collection { get; private set; }
-
-                public static PredictionTimeline Add(PredictionObject target)
+                foreach (var original in Objects.All)
                 {
-                    if (target.IsClone)
-                        throw new ArgumentException("Cannot Record A Clone, Please Pass in the Original Object");
+                    var clone = original.Other;
 
-                    var timeline = new PredictionTimeline();
-                    Collection[timeline] = target;
-
-                    return timeline;
+                    clone.Free();
+                    clone.Anchor();
                 }
 
-                #region Procedure
-                internal static void Prepare()
+                foreach (var original in Objects.Recordable)
                 {
-                    foreach (var timeline in Collection.Keys)
-                        timeline.Clear();
+                    var clone = original.Other;
+                    clone.Begin();
                 }
 
-                internal static void Iterate()
+                Prefabs.Start();
+            }
+
+            internal static void Capture()
+            {
+                foreach (var original in Objects.Recordable)
                 {
-                    foreach (var pair in Collection)
-                    {
-                        var timeline = pair.Key;
-                        var target = pair.Value;
+                    var clone = original.Other;
 
-                        timeline.Add(target.Clone.Position, target.Clone.Rotation);
-                    }
-                }
-
-                internal static void Finish()
-                {
-
-                }
-                #endregion
-
-                public static bool Remove(PredictionTimeline timeline)
-                {
-                    return Collection.Remove(timeline);
-                }
-
-                internal static void Clear()
-                {
-                    Collection.Clear();
-                }
-
-                static Objects()
-                {
-                    Collection = new Dictionary<PredictionTimeline, PredictionObject>();
+                    clone.Capture();
                 }
             }
 
-            public static class Prefabs
+            internal static void End()
             {
-                public static Dictionary<PredictionTimeline, Entry> Collection { get; private set; }
-
-                public class Entry
+                foreach (var original in Objects.All)
                 {
-                    public GameObject Prefab { get; private set; }
-                    public GameObject Instance { get; private set; }
+                    var clone = original.Other;
 
-                    public Rigidbody Rigidbody { get; private set; }
-                    public Rigidbody2D Rigidbody2D { get; private set; }
-
-                    public Vector3 Position => Instance.transform.position;
-                    public Quaternion Rotation => Instance.transform.rotation;
-
-                    public Action<GameObject> Action { get; private set; }
-
-                    internal void Prepare()
-                    {
-                        Instance.transform.position = Prefab.transform.position;
-                        Instance.transform.rotation = Prefab.transform.rotation;
-
-                        if (Rigidbody)
-                        {
-                            Rigidbody.velocity = Vector3.zero;
-                            Rigidbody.angularVelocity = Vector3.zero;
-                        }
-
-                        if (Rigidbody2D)
-                        {
-                            Rigidbody2D.velocity = Vector2.zero;
-                            Rigidbody2D.angularVelocity = 0f;
-                        }
-
-                        Instance.SetActive(true);
-
-                        Action(Instance);
-                    }
-
-                    internal void Finish()
-                    {
-                        Instance.SetActive(false);
-                    }
-
-                    public Entry(GameObject prefab, GameObject instance, Action<GameObject> action)
-                    {
-                        this.Prefab = prefab;
-                        this.Instance = instance;
-
-                        Rigidbody = Instance.GetComponent<Rigidbody>();
-                        Rigidbody2D = Instance.GetComponent<Rigidbody2D>();
-
-                        this.Action = action;
-                    }
+                    clone.Freeze();
+                    clone.Anchor();
                 }
 
-                public static PredictionTimeline Add(GameObject prefab, Action<GameObject> action)
-                {
-                    var mode = CheckPhysicsMode(prefab);
-
-                    return Add(prefab, mode, action);
-                }
-                public static PredictionTimeline Add(GameObject prefab, PredictionPhysicsMode mode, Action<GameObject> action)
-                {
-                    var timeline = new PredictionTimeline();
-
-                    var instance = Clone.Retrieve(prefab, mode);
-                    instance.SetActive(false);
-
-                    var entry = new Entry(prefab, instance, action);
-
-                    Collection.Add(timeline, entry);
-
-                    return timeline;
-                }
-
-                #region Procedure
-                internal static void Prepare()
-                {
-                    foreach (var pair in Collection)
-                    {
-                        var timeline = pair.Key;
-                        timeline.Clear();
-
-                        var entry = pair.Value;
-                        entry.Prepare();
-                    }
-                }
-
-                internal static void Iterate()
-                {
-                    foreach (var pair in Collection)
-                    {
-                        var timeline = pair.Key;
-                        var entry = pair.Value;
-
-                        timeline.Add(entry.Position, entry.Rotation);
-                    }
-                }
-
-                internal static void Finish()
-                {
-                    foreach (var entry in Collection.Values)
-                        entry.Finish();
-                }
-                #endregion
-
-                public static bool Remove(PredictionTimeline timeline)
-                {
-                    if (Collection.TryGetValue(timeline, out var entry))
-                        Object.Destroy(entry.Instance);
-
-                    return Collection.Remove(timeline);
-                }
-
-                internal static void Clear()
-                {
-                    foreach (var entry in Collection.Values)
-                    {
-                        var instance = entry.Instance;
-
-                        Object.Destroy(instance);
-                    }
-
-                    Collection.Clear();
-                }
-
-                static Prefabs()
-                {
-                    Collection = new Dictionary<PredictionTimeline, Entry>();
-                }
-            }
-
-            #region Procedure
-            internal static void Prepare()
-            {
-                Objects.Prepare();
-                Prefabs.Prepare();
-            }
-
-            internal static void Iterate()
-            {
-                Objects.Iterate();
-                Prefabs.Iterate();
-            }
-
-            internal static void Finish()
-            {
-                Objects.Finish();
-                Prefabs.Finish();
-            }
-            #endregion
-
-            internal static void Clear()
-            {
-                Objects.Clear();
-                Prefabs.Clear();
+                Prefabs.End();
             }
         }
 
@@ -526,17 +407,16 @@ namespace MB.PhysicsPrediction
         public static event SimualateDelegate OnSimulate;
         public static void Simulate(int iterations)
         {
-            Objects.Anchor();
-            Record.Prepare();
+            Record.Start();
 
-            for (int i = 0; i < iterations; i++)
+            for (int i = 1; i <= iterations; i++)
             {
                 Scenes.Simulate(Time.fixedDeltaTime);
 
-                Record.Iterate();
+                Record.Capture();
             }
 
-            Record.Finish();
+            Record.End();
 
             OnSimulate?.Invoke(iterations);
         }
@@ -593,5 +473,8 @@ namespace MB.PhysicsPrediction
         Physics3D,
     }
 
-    public interface IPredictionPersistantObject { }
+    public interface IPredictionPersistantObject
+    {
+        bool IsClone { get; set; }
+    }
 }
