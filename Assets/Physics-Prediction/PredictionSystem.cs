@@ -189,8 +189,16 @@ namespace MB.PhysicsPrediction
                 var entry = new Entry(prefab, original, action);
                 Collection.Add(original, entry);
 
+                original.OnStart += StartCallback;
+                void StartCallback()
+                {
+                    original.OnStart -= StartCallback;
+                    original.gameObject.SetActive(false);
+                }
+
                 return original;
             }
+
             public static bool Remove(PredictionRecorder target)
             {
                 if (Collection.Remove(target, out var entry) == false)
@@ -346,9 +354,26 @@ namespace MB.PhysicsPrediction
             }
         }
 
-        public static class Record
+        public static class Simulation
         {
-            internal static void Start()
+            public static void Execute(int iterations)
+            {
+                Simulation.Start();
+
+                for (int i = 1; i <= iterations; i++)
+                {
+                    Scenes.Simulate(Time.fixedDeltaTime);
+
+                    Simulation.Capture();
+                }
+
+                Simulation.End();
+
+                OnStart?.Invoke();
+            }
+
+            public static event Action OnStart;
+            static void Start()
             {
                 foreach (var original in Objects.All)
                 {
@@ -365,19 +390,24 @@ namespace MB.PhysicsPrediction
                 }
 
                 Prefabs.Start();
+
+                OnStart?.Invoke();
             }
 
-            internal static void Capture()
+            public static event Action OnCapture;
+            static void Capture()
             {
                 foreach (var original in Objects.Recordable)
                 {
                     var clone = original.Other;
-
                     clone.Capture();
                 }
+
+                OnCapture?.Invoke();
             }
 
-            internal static void End()
+            public static event Action OnEnd;
+            static void End()
             {
                 foreach (var original in Objects.All)
                 {
@@ -387,7 +417,15 @@ namespace MB.PhysicsPrediction
                     clone.Anchor();
                 }
 
+                foreach (var original in Objects.Recordable)
+                {
+                    var clone = original.Other;
+                    clone.End();
+                }
+
                 Prefabs.End();
+
+                OnEnd?.Invoke();
             }
         }
 
@@ -401,24 +439,6 @@ namespace MB.PhysicsPrediction
 #endif
 
             Scenes.Prepare();
-        }
-
-        public delegate void SimualateDelegate(int iterations);
-        public static event SimualateDelegate OnSimulate;
-        public static void Simulate(int iterations)
-        {
-            Record.Start();
-
-            for (int i = 1; i <= iterations; i++)
-            {
-                Scenes.Simulate(Time.fixedDeltaTime);
-
-                Record.Capture();
-            }
-
-            Record.End();
-
-            OnSimulate?.Invoke(iterations);
         }
 
         //Utility

@@ -16,6 +16,7 @@ using UnityEditorInternal;
 
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
+using UnityEngine.Pool;
 
 namespace MB.PhysicsPrediction
 {
@@ -34,17 +35,17 @@ namespace MB.PhysicsPrediction
         {
             line.useWorldSpace = true;
 
-            PredictionSystem.OnSimulate += PredictionSimulateCallback;
+            PredictionSystem.Simulation.OnEnd += PredictionSimulateEndCallback;
 
             OnShowAll += Show;
             OnHideAll += Hide;
         }
 
-        void PredictionSimulateCallback(int iterations)
+        void PredictionSimulateEndCallback()
         {
-            line.positionCount = target.Snapshots;
+            line.positionCount = target.Coordinates.Count;
 
-            for (int i = 0; i < target.Snapshots; i++)
+            for (int i = 0; i < target.Coordinates.Count; i++)
                 line.SetPosition(i, target.Coordinates[i].Position);
         }
 
@@ -73,7 +74,7 @@ namespace MB.PhysicsPrediction
         {
             if (IsClone) return;
 
-            PredictionSystem.OnSimulate -= PredictionSimulateCallback;
+            PredictionSystem.Simulation.OnEnd -= PredictionSimulateEndCallback;
 
             OnShowAll -= Show;
             OnHideAll -= Hide;

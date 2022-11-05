@@ -66,12 +66,8 @@ namespace MB.PhysicsPrediction
 
 		public const KeyCode Key = KeyCode.Mouse0;
 
-		Transform InstanceContainer;
-
         void Start()
         {
-            InstanceContainer = new GameObject("Projectiles Container").transform;
-
 			prediction.Target = PredictionSystem.Prefabs.Add(prefab, Launch);
 
             StartCoroutine(Procedure());
@@ -86,7 +82,6 @@ namespace MB.PhysicsPrediction
                 prediction.Line.positionCount = 0;
 
                 var instance = Instantiate(prefab);
-                instance.transform.SetParent(InstanceContainer);
                 Launch(instance);
 
                 TrajectoryPredictionDrawer.HideAll();
@@ -123,13 +118,13 @@ namespace MB.PhysicsPrediction
 
                 if (Input.GetKey(Key) == false) continue;
 
-                PredictionSystem.Simulate(prediction.Iterations);
+                PredictionSystem.Simulation.Execute(prediction.Iterations);
 
                 TrajectoryPredictionDrawer.ShowAll();
 
-                prediction.Line.positionCount = prediction.Target.Snapshots;
+                prediction.Line.positionCount = prediction.Target.Coordinates.Count;
 
-                for (int i = 0; i < prediction.Target.Snapshots; i++)
+                for (int i = 0; i < prediction.Target.Coordinates.Count; i++)
                     prediction.Line.SetPosition(i, prediction.Target.Coordinates[i].Position);
             }
         }

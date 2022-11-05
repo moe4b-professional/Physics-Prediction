@@ -59,6 +59,12 @@ namespace MB.PhysicsPrediction
             }
         }
 
+        public event Action OnStart;
+        protected virtual void Start()
+        {
+            OnStart?.Invoke();
+        }
+
         public virtual void Anchor()
         {
             Position = Other.Position;
@@ -120,6 +126,12 @@ namespace MB.PhysicsPrediction
         {
             if (IsOriginal) if (Other) Other.Active = false;
         }
+
+        protected virtual void OnCollisionEnter(Collision collision)
+        {
+            
+        }
+        protected virtual void OnCollisionEnter2D(Collision2D collision) { }
 
         protected virtual void OnDestroy()
         {
